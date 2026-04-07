@@ -1,55 +1,29 @@
-# Current Task
+# CURRENT TASK
 
-Implement Version-0 of WeatherApp.
+Improve readability and maintainability of the Version-0 GUI code.
 
-Goal:
-Create a minimal PyQt6 GUI displaying current weather conditions.
+Target files:
 
-Requirements
+- `src/weatherapp/app.py`
+- `src/weatherapp/gui/main_window.py`
+- `src/weatherapp/gui/worker.py`
 
-Constraint priority rule:
-CONSTRAINTS.md overrides all other instructions.
+Goals:
 
-Create these modules:
+1. Add module-level docstrings explaining the purpose of each file.
+2. Add clear docstrings to every class and function.
+3. Add short inline comments explaining non-obvious logic.
+4. Add section headers separating logical blocks of code where appropriate.
+5. Do NOT change program behavior.
+6. Do NOT modify any modules outside the files listed above.
 
-`src/weatherapp/gui/main_window.py`  
-`src/weatherapp/gui/worker.py`
-`src/weatherapp/gui/__init__.py`  
-`src/weatherapp/app.py`
+Constraints:
 
-MainWindow
+- Keep comments concise and technical.
+- Avoid redundant comments describing obvious Python syntax.
+- Follow standard Python docstring style.
 
-- QWidget window
-- Display temperature, description, and emoji icon
-- Include "Refresh Now" button
-- Show error messages if fetch fails
+Deliverables:
 
-Threading
-
-- Use QThread + Worker pattern
-- Worker has fetch() slot
-- Worker emits weather_fetched(dict)
-
-Refresh behavior
-
-- Automatic refresh every 10 minutes via QTimer
-- Manual refresh via button
-
-Worker behavior
-
-- Call get_weather_data()
-- Call get_weather_icon()
-- Package results into dict and emit signal
-
-Version-0 constraints
-
-- No hourly or daily forecast views
-- Minimal layout
-- No styling
-- No networking changes
-
-Success criteria
-
-- Application launches successfully
-- Current weather is displayed
-- Refresh button triggers data fetch
+- Updated versions of the three files with clear documentation.
+- Update `agent_control/STATE.md` describing the documentation changes.
