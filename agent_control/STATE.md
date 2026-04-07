@@ -11,18 +11,18 @@ It is updated by the agent after completing each task.
 Version: 0
 
 Description:
-Minimal GUI displaying current weather.
+Minimal GUI displaying current weather. Implemented Version-0 GUI with background worker and manual/automatic refresh.
 
 ---
 
 ## Implemented Features
 
 - PyQt6 main window
-- Background worker for weather data
+- Background worker for weather data (QThread + Worker pattern)
 - Current temperature display
-- Weather description display
+- Weather description display (SVG filename + description)
 - Manual refresh button
-- Automatic refresh timer
+- Automatic refresh timer (10 minutes)
 
 ---
 
@@ -37,10 +37,6 @@ Minimal GUI displaying current weather.
 
 ## Files Modified
 
-List any existing files modified.
-
-Example:
-
 None.
 
 ---
@@ -51,14 +47,11 @@ None.
 - No daily forecast
 - No city search
 - Minimal UI layout
+- Network access occurs when worker.fetch() is called; imports do not trigger network requests.
 
 ---
 
 ## Next Planned Features
-
-Derived from ROADMAP.md.
-
-Example:
 
 1. Add 48-hour hourly forecast
 2. Add 10-day daily forecast
@@ -68,8 +61,4 @@ Example:
 
 ## Notes for Future Development
 
-Optional notes that may help future tasks.
-
-Example:
-
-Weather data retrieval handled in background worker to avoid blocking GUI thread.
+Weather data retrieval is performed in a background worker to avoid blocking GUI thread. The worker emits `weather_fetched` with minimal fields (temperature_2m, weather_code, is_day) for the GUI to display.
