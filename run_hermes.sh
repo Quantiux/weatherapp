@@ -18,7 +18,7 @@ echo
 
 # ---- 1. Sanity checks ----
 REQUIRED_FILES=(
-  "$CONTROL_DIR/AGENTS.md"
+  "$CONTROL_DIR/AGENT.md"
   "$CONTROL_DIR/CONSTRAINTS.md"
   "$CONTROL_DIR/PROJECT.md"
   "$CONTROL_DIR/ARCHITECTURE.md"
