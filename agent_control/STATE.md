@@ -13,6 +13,12 @@ Version: 0
 Description:
 Minimal GUI displaying current weather. Implemented Version-0 GUI with background worker and manual/automatic refresh.
 
+Documentation updates:
+- Added module-level and function/class docstrings for src/weatherapp/app.py,
+  src/weatherapp/gui/main_window.py, and src/weatherapp/gui/worker.py to
+  improve readability and maintainability. Inline comments added to explain
+  non-obvious logic and thread interactions. No behavioral changes were made.
+
 ---
 
 ## Implemented Features
