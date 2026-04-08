@@ -1,19 +1,20 @@
 # Current Task
 
-Implement Version-0.5 of WeatherApp.
+Implement Version-0 of WeatherApp.
 
 Goal:
-Improve Version-0 PyQt6 GUI to display richer current weather conditions.
+Create a minimal PyQt6 GUI displaying current weather conditions.
 
 Requirements
 
 Constraint priority rule:
 CONSTRAINTS.md overrides all other instructions.
 
-Modify these modules only as needed to meet the goal, including docstrings and comments:
+Create these modules:
 
-`src/weatherapp/gui/main_window.py`
+`src/weatherapp/gui/main_window.py`  
 `src/weatherapp/gui/worker.py`
+`src/weatherapp/gui/__init__.py`  
 `src/weatherapp/app.py`
 
 MainWindow
@@ -40,7 +41,7 @@ Worker behavior
 - Call get_weather_icon()
 - Package results into dict and emit signal
 
-Version-0.5 constraints
+Version-0 constraints
 
 - No hourly or daily forecast views
 - Minimal layout
