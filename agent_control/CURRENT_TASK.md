@@ -3,19 +3,23 @@
 Implement Version-1 of WeatherApp.
 
 Goal:
-Improve minimal Version-05 PyQt6 GUI to display all fetched current weather data.
+Improve minimal Version-05 PyQt6 GUI to display all current weather data.
 
 Requirements
 
 Constraint priority rule:
 CONSTRAINTS.md overrides all other instructions.
 
-Modify module `src/weatherapp/gui/main_window.py` as needed to emit all current weather data fetched by `src/weatherapp/gui/worker.py` (no need to change this module). Make appropriate changes to the docstrings and comments to maintain readability.
+Modify these modules only as needed to meet the goal, including docstrings and comments:
+
+`src/weatherapp/gui/main_window.py`
+`src/weatherapp/gui/worker.py`
+`src/weatherapp/app.py`
 
 MainWindow
 
 - QWidget window
-- Display current weather data and emoji icon
+- Display all current weather data and emoji icon
 - Include "Refresh Now" button
 - Show error messages if fetch fails
 
