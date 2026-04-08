@@ -1,9 +1,9 @@
-# Current Task (to do)
+# Current Task
 
-Implement Version-1.5 of WeatherApp.
+Implement Version-1 of WeatherApp.
 
 Goal
-Extend the Version-1 GUI so the window visibly displays all current weather fields emitted by Worker.
+Extend the Version-0.5 GUI so the window visibly displays all current weather fields emitted by Worker.
 
 Requirements
 

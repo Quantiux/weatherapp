@@ -37,14 +37,32 @@ class MainWindow(QWidget):
         self.setWindowTitle("WeatherApp")
 
         # Basic widgets: temperature, description, and a manual refresh button
+        self.weather_label = QLabel("--")
         self.temp_label = QLabel("--°F")
-        self.desc_label = QLabel("Unknown")
+        self.apparent_label = QLabel("Feels like: --°F")
+        self.humidity_label = QLabel("Humidity: --%")
+        self.cloud_label = QLabel("Cloud cover: --%")
+        self.rain_label = QLabel("Rainfall: -- in")
+        self.snow_label = QLabel("Snowfall: -- in")
+        self.precip_label = QLabel("Precip: --%")
+        self.wind_label = QLabel("Wind: -- mph (Gusts: -- mph)")
+        self.visibility_label = QLabel("Visibility: -- mi")
+        self.uv_label = QLabel("UV index: --")
         self.refresh_button = QPushButton("Refresh Now")
 
         # Layout: vertical stack for simplicity and clarity
         layout = QVBoxLayout()
+        layout.addWidget(self.weather_label)
         layout.addWidget(self.temp_label)
-        layout.addWidget(self.desc_label)
+        layout.addWidget(self.apparent_label)
+        layout.addWidget(self.humidity_label)
+        layout.addWidget(self.cloud_label)
+        layout.addWidget(self.rain_label)
+        layout.addWidget(self.snow_label)
+        layout.addWidget(self.precip_label)
+        layout.addWidget(self.wind_label)
+        layout.addWidget(self.visibility_label)
+        layout.addWidget(self.uv_label)
         layout.addWidget(self.refresh_button)
         self.setLayout(layout)
 
@@ -97,23 +115,51 @@ class MainWindow(QWidget):
     def on_weather_fetched(self, data: dict) -> None:
         """Update UI widgets with data returned from the Worker.
 
-        The Worker emits a minimal dict containing temperature_2m, weather_code,
-        and is_day when available. We defensively extract those fields and update
-        the labels. Any unexpected structure causes a non-fatal warning dialog.
+        The Worker emits a dict containing many current-weather fields. We
+        defensively extract the requested fields and update the labels. Any
+        unexpected structure triggers a non-fatal warning dialog.
         """
         try:
-            # Update temperature label if available
+            # Update weather icon/description
+            if "weather" in data:
+                self.weather_label.setText(str(data["weather"]))
+            elif "svg" in data or "description" in data:
+                svg = data.get("svg", "--")
+                desc = data.get("description", "--")
+                self.weather_label.setText(f"{svg} ({desc})")
+
+            # Temperature and apparent temperature
             if "temperature_2m" in data:
                 self.temp_label.setText(f"{int(round(data['temperature_2m']))}°F")
+            if "apparent_temperature" in data:
+                self.apparent_label.setText(f"Feels like: {int(round(data['apparent_temperature']))}°F")
 
-            # Update description label using helpers that map codes to strings/icons
-            if "weather_code" in data:
-                code = int(data["weather_code"])
-                tod = "day" if data.get("is_day", True) else "night"
-                svg = get_svg_for_code(code, tod)
-                desc = get_desc_for_code(code)
-                # Show a compact representation: icon (description)
-                self.desc_label.setText(f"{svg} ({desc})")
+            # Humidity and cloud cover
+            if "relative_humidity_2m" in data:
+                self.humidity_label.setText(f"Humidity: {int(round(data['relative_humidity_2m']))}%")
+            if "cloud_cover" in data:
+                self.cloud_label.setText(f"Cloud cover: {int(round(data['cloud_cover']))}%")
+
+            # Precipitation: rain and snowfall and precip probability
+            if "rain" in data:
+                self.rain_label.setText(f"Rainfall: {float(data['rain']):.2f} in")
+            if "snowfall" in data:
+                self.snow_label.setText(f"Snowfall: {float(data['snowfall']):.2f} in")
+            if "precipitation_probability" in data:
+                self.precip_label.setText(f"Precip: {int(round(data['precipitation_probability']))}%")
+
+            # Wind
+            if "wind_speed" in data or "wind_gusts" in data:
+                ws = data.get("wind_speed", 0)
+                wg = data.get("wind_gusts", 0)
+                self.wind_label.setText(f"Wind: {float(ws):.1f} mph (Gusts: {float(wg):.1f} mph)")
+
+            # Visibility and UV index
+            if "visibility" in data:
+                self.visibility_label.setText(f"Visibility: {float(data['visibility']):.1f} mi")
+            if "uv_index" in data:
+                self.uv_label.setText(f"UV index: {int(round(data['uv_index']))}")
+
         except Exception as exc:
             # Defensive: show error but don't crash the application
             QMessageBox.warning(self, "Display Error", f"Failed to display weather: {exc}")

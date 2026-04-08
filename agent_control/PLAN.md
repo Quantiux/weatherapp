@@ -10,41 +10,40 @@ Keep it concise and actionable.
 
 ## Task Summary
 
-Implement Version-0.5 of WeatherApp: enhance the minimal PyQt6 GUI to display a richer set of current weather fields (temperature, description/icon, humidity, wind, visibility, UV, precipitation), support manual and automatic refresh, and use a background worker (QThread) to call existing data functions.
+Implement Version-1 of WeatherApp: extend the PyQt6 GUI so the MainWindow visibly displays all current weather fields emitted by the Worker and updates them in on_weather_fetched(). Maintain existing threading, manual refresh, and automatic refresh behavior.
 
 ---
 
-## Files To Create
-
-- `src/weatherapp/gui/__init__.py` (already present)
-
 ## Files To Modify
 
-- `src/weatherapp/gui/worker.py` (expanded to emit richer current weather dict)
-- `src/weatherapp/gui/main_window.py` (already displays basic fields; will be used as-is)
-- `src/weatherapp/app.py` (already present; no changes required)
+- `src/weatherapp/gui/main_window.py` (add QLabel widgets for each required field and update them in on_weather_fetched)
+- `src/weatherapp/gui/worker.py` (no change required if it already emits the richer dict)
+- `src/weatherapp/app.py` (no changes expected)
 
 ---
 
 ## Implementation Steps
 
-1. Update `src/weatherapp/gui/worker.py` to extract the full set of current fields used by format.show_weather and emit them in `weather_fetched` as a plain dict. Keep imports lazy and handle structured-access failures by emitting the raw response as fallback.
-2. Ensure `main_window.py` safely consumes the richer dict, updating temperature and description as before. The window will continue to show temperature and a compact description; additional fields are included in the payload for future UI enhancements.
-3. Run quick import checks to verify no imports trigger network calls at import time.
-4. Update `agent_control/STATE.md` summarizing changes and files modified.
-5. Run the checklist in `agent_control/CHECKLIST.md` and fix any issues.
+1. Update `agent_control/PLAN.md` (this file) to reflect Version-1 work and files to modify.
+2. Modify `src/weatherapp/gui/main_window.py`:
+   - Add QLabel widgets for the following fields in order: Weather (icon + description), Temperature (shows apparent temperature too), Humidity, Cloud cover, Rainfall total, Snowfall, Precipitation probability, Wind (speed and gusts), Visibility, UV index.
+   - Use a simple QVBoxLayout and keep UI updates inside on_weather_fetched().
+   - Keep existing thread/worker connections and refresh behavior unchanged.
+3. Run a quick import check (PYTHONPATH=src) to ensure modules import without raising errors at import time.
+4. If import succeeds, update `agent_control/STATE.md` describing the implemented changes and modified files.
+5. Run the self-checklist in `agent_control/CHECKLIST.md` and fix any issues found.
 
 ---
 
 ## Risks or Unknowns
 
-- Exact response object interface from fetch_weather; handled via try/except and fallback to raw response.
-- UI layout remains minimal; future tasks will add more visualizations.
+- Exact units for some fields (rainfall, snowfall, temperature) depend on the data layer; UI will display raw numeric values with reasonable unit labels (°F for temperature, "in" for precipitation, "mi" for visibility) mirroring existing examples.
+- If PyQt6 is not available in the execution environment, import checks may fail; report this in the final summary.
 
 ---
 
 ## Verification
 
-- Application modules import without errors.
-- Worker emits `weather_fetched` with richer dict when `fetch()` is invoked.
-- GUI updates remain confined to the main thread and no blocking occurs on startup.
+- Application modules import without errors when PYTHONPATH=src.
+- MainWindow updates all new QLabel widgets inside on_weather_fetched() using data emitted by Worker.
+- GUI thread remains non-blocking and worker thread connections remain unchanged.
