@@ -8,63 +8,47 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 0
+Version: 0.5
 
 Description:
-Minimal GUI displaying current weather. Implemented Version-0 GUI with background worker and manual/automatic refresh.
-
-Documentation updates:
-- Added module-level and function/class docstrings for src/weatherapp/app.py,
-  src/weatherapp/gui/main_window.py, and src/weatherapp/gui/worker.py to
-  improve readability and maintainability. Inline comments added to explain
-  non-obvious logic and thread interactions. No behavioral changes were made.
+Improved the GUI worker to emit a richer current weather payload so the GUI can display all fetched current weather fields. No changes were made to the data retrieval or formatting modules. Imports were kept lazy to avoid network calls at import time.
 
 ---
 
 ## Implemented Features
 
-- PyQt6 main window
-- Background worker for weather data (QThread + Worker pattern)
-- Current temperature display
-- Weather description display (SVG filename + description)
-- Manual refresh button
-- Automatic refresh timer (10 minutes)
+- Worker emits a comprehensive current-weather dictionary including temperature, relative humidity, apparent temperature, is_day, rain, snowfall, cloud cover, wind speed, gusts, precipitation probability, visibility (miles), uv index, weather_code, svg, and description.
+- MainWindow continues to display temperature and description; payload is prepared for future UI enhancements.
+- Manual refresh button and automatic refresh timer remain unchanged.
 
 ---
 
 ## Files Added
 
-- `src/weatherapp/gui/main_window.py`
-- `src/weatherapp/gui/worker.py`
-- `src/weatherapp/gui/__init__.py`
-- `src/weatherapp/app.py`
+- `src/weatherapp/gui/__init__.py` (if not already present)
 
 ---
 
 ## Files Modified
 
-None.
+- `src/weatherapp/gui/worker.py` (expanded to extract and package additional current weather fields)
 
 ---
 
 ## Known Limitations
 
-- No hourly forecast
-- No daily forecast
-- No city search
-- Minimal UI layout
-- Network access occurs when worker.fetch() is called; imports do not trigger network requests.
+- UI remains minimal and does not yet display the additional fields beyond temperature and description.
+- No hourly or daily forecast views in this version.
 
 ---
 
 ## Next Planned Features
 
-1. Add 48-hour hourly forecast
-2. Add 10-day daily forecast
-3. Add city search
+1. Update MainWindow to display additional fields (humidity, wind, visibility, UV index).
+2. Add tests mocking the worker to validate signal emissions and UI updates.
 
 ---
 
 ## Notes for Future Development
 
-Weather data retrieval is performed in a background worker to avoid blocking GUI thread. The worker emits `weather_fetched` with minimal fields (temperature_2m, weather_code, is_day) for the GUI to display.
+Worker.fetch() performs lazy imports and defensive structured access to the response object. If structured access fails, the raw response is emitted to aid debugging. This keeps module import-time side effects minimal.

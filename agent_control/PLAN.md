@@ -10,58 +10,41 @@ Keep it concise and actionable.
 
 ## Task Summary
 
-Implement Version-0 of WeatherApp: create a minimal PyQt6 GUI that displays current weather (temperature, description, emoji/icon), supports manual and automatic refresh, and uses a background worker (QThread) to call existing data functions.
+Implement Version-0.5 of WeatherApp: enhance the minimal PyQt6 GUI to display a richer set of current weather fields (temperature, description/icon, humidity, wind, visibility, UV, precipitation), support manual and automatic refresh, and use a background worker (QThread) to call existing data functions.
 
 ---
 
 ## Files To Create
 
-- `src/weatherapp/gui/__init__.py`
-- `src/weatherapp/gui/worker.py`
-- `src/weatherapp/gui/main_window.py`
-- `src/weatherapp/app.py`
-
----
+- `src/weatherapp/gui/__init__.py` (already present)
 
 ## Files To Modify
 
-None.
+- `src/weatherapp/gui/worker.py` (expanded to emit richer current weather dict)
+- `src/weatherapp/gui/main_window.py` (already displays basic fields; will be used as-is)
+- `src/weatherapp/app.py` (already present; no changes required)
 
 ---
 
 ## Implementation Steps
 
-1. Create `src/weatherapp/gui/__init__.py` to define the gui package.
-2. Implement `Worker` in `src/weatherapp/gui/worker.py` using QThread pattern:
-   - Worker runs in a QThread and exposes a `fetch()` slot.
-   - Worker calls `weatherapp.data.get_weather_data.fetch_weather()` and `weatherapp.format.show_weather` helpers as needed.
-   - Worker emits `weather_fetched(dict)` on success and `fetch_failed(str)` on error.
-3. Implement `MainWindow` in `src/weatherapp/gui/main_window.py`:
-   - Minimal QWidget showing temperature, description (with icon text), and a "Refresh Now" QPushButton.
-   - Connect button to call the Worker's `fetch()` via a queued signal.
-   - Start a QTimer that triggers a refresh every 10 minutes (600000 ms).
-   - Show error messages using QMessageBox when fetch fails.
-   - Ensure GUI updates occur only from the main thread (use signals/slots).
-4. Implement `src/weatherapp/app.py` as the application entry point to create QApplication, instantiate MainWindow, and start the GUI.
-5. Run a quick import smoke test to ensure modules import correctly (no runtime network calls at import time).
-6. Update `agent_control/STATE.md` with files added and a short summary.
-7. Run the checklist in `agent_control/CHECKLIST.md` and fix any issues.
+1. Update `src/weatherapp/gui/worker.py` to extract the full set of current fields used by format.show_weather and emit them in `weather_fetched` as a plain dict. Keep imports lazy and handle structured-access failures by emitting the raw response as fallback.
+2. Ensure `main_window.py` safely consumes the richer dict, updating temperature and description as before. The window will continue to show temperature and a compact description; additional fields are included in the payload for future UI enhancements.
+3. Run quick import checks to verify no imports trigger network calls at import time.
+4. Update `agent_control/STATE.md` summarizing changes and files modified.
+5. Run the checklist in `agent_control/CHECKLIST.md` and fix any issues.
 
 ---
 
 ## Risks or Unknowns
 
-- Exact return structure of fetch_weather() (the worker will treat its return as opaque and only extract needed current fields; tests will mock network calls).
-- get_weather_icon() is referenced in CURRENT_TASK.md but not present as a standalone function; the worker will rely on weather_code_mapper helpers via show_weather.format helpers or will request only the description provided by format.show_weather's parsing functions.
+- Exact response object interface from fetch_weather; handled via try/except and fallback to raw response.
+- UI layout remains minimal; future tasks will add more visualizations.
 
 ---
 
 ## Verification
 
-- Application imports without errors.
-- MainWindow can be created without performing network requests.
-- Worker emits `weather_fetched` when fetch is called (to be validated by running the app with network mocked or with a dry-run environment).
-
----
-
-
+- Application modules import without errors.
+- Worker emits `weather_fetched` with richer dict when `fetch()` is invoked.
+- GUI updates remain confined to the main thread and no blocking occurs on startup.
