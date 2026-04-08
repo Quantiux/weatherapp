@@ -3,35 +3,18 @@
 Implement Version-1 of WeatherApp.
 
 Goal
-Extend the Version-0.5 GUI so the window visibly displays all current weather fields emitted by `Worker.weather_fetched`.
+Extend the Version-0.5 GUI so the window visibly displays all current weather fields emitted by Worker.
+
+Requirements
 
 Constraint priority rule
 CONSTRAINTS.md overrides all other instructions.
 
-Files allowed to modify
+Modify these modules only as needed to meet the goal, including docstrings and comments:
 
 `src/weatherapp/gui/main_window.py`
 `src/weatherapp/gui/worker.py`
 `src/weatherapp/app.py`
-
-Worker behavior
-
-Worker.fetch() must emit a dictionary containing at least:
-
-`temperature_2m`
-`relative_humidity_2m`
-`apparent_temperature`
-`rain`
-`snowfall`
-`cloud_cover`
-`wind_speed`
-`wind_gusts`
-`precipitation_probability`
-`visibility`
-`uv_index`
-`weather_code`
-`svg`
-`description`
 
 MainWindow UI requirements
 
@@ -48,7 +31,7 @@ Wind speed (wind gusts)
 Visibility
 UV index
 
-These values must be updated inside MainWindow.on_weather_fetched().
+These values must be updated inside `MainWindow.on_weather_fetched()`.
 
 Layout
 
@@ -84,12 +67,9 @@ Version-1 constraints
 No forecasts
 No styling
 No networking changes
-Do not change data provider
 
 Success criteria
 
-Application launches.
-
-Main window visibly displays all current weather fields listed above.
-
-Refresh button updates all displayed values.
+- Application launches successfully
+- Current weather is displayed as listed above
+- Refresh button triggers data fetch
