@@ -11,13 +11,13 @@ It is updated by the agent after completing each task.
 Version: 0.5
 
 Description:
-Improved the GUI worker to emit a richer current weather payload so the GUI can display all fetched current weather fields. No changes were made to the data retrieval or formatting modules. Imports were kept lazy to avoid network calls at import time.
+Improved the GUI worker to fetch a richer current weather payload so the GUI can display all fetched current weather fields. No changes were made to the data retrieval or formatting modules. Imports were kept lazy to avoid network calls at import time.
 
 ---
 
 ## Implemented Features
 
-- Worker emits a comprehensive current-weather dictionary including temperature, relative humidity, apparent temperature, is_day, rain, snowfall, cloud cover, wind speed, gusts, precipitation probability, visibility (miles), uv index, weather_code, svg, and description.
+- Worker fetches a comprehensive current-weather dictionary including temperature, relative humidity, apparent temperature, is_day, rain, snowfall, cloud cover, wind speed, gusts, precipitation probability, visibility (miles), uv index, weather_code, svg, and description.
 - MainWindow continues to display temperature and description; payload is prepared for future UI enhancements.
 - Manual refresh button and automatic refresh timer remain unchanged.
 

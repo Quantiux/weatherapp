@@ -10,12 +10,12 @@ Requirements
 Constraint priority rule:
 CONSTRAINTS.md overrides all other instructions.
 
-Modify module `src/weatherapp/gui/main_window.py` to emit all current weather data fetched by module `src/weatherapp/gui/worker.py`. Make appropriate changes to the docstrings and comments to maintain readability.
+Modify module `src/weatherapp/gui/main_window.py` as needed to emit all current weather data fetched by `src/weatherapp/gui/worker.py` (no need to change this module). Make appropriate changes to the docstrings and comments to maintain readability.
 
 MainWindow
 
 - QWidget window
-- Display temperature, description, and emoji icon
+- Display current weather data and emoji icon
 - Include "Refresh Now" button
 - Show error messages if fetch fails
 
@@ -39,7 +39,6 @@ Worker behavior
 Version-1 constraints
 
 - No hourly or daily forecast views
-- Minimal layout
 - No styling
 - No networking changes
 

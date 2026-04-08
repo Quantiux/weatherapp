@@ -27,9 +27,9 @@ The directory layout defined in ARCHITECTURE.md must remain stable.
 The following modules are considered stable and must not be modified
 unless explicitly instructed in CURRENT_TASK.md:
 
-src/weatherapp/data/get_weather_data.py
-src/weatherapp/format/show_weather.py
-src/weatherapp/utils/weather_code_mapper.py
+`src/weatherapp/data/get_weather_data.py`
+`src/weatherapp/format/show_weather.py`
+`src/weatherapp/utils/weather_code_mapper.py`
 
 Do not rewrite, refactor, or optimize these modules.
 
@@ -125,6 +125,6 @@ Keep Markdown files readable and focused.
 
 If an action might violate these constraints:
 
-do not perform it.
+Do not perform it.
 
 Instead report the limitation in the final summary.
