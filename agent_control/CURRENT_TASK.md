@@ -3,7 +3,7 @@
 Implement Version-0.5 of WeatherApp.
 
 Goal:
-Improve Version-0 PyQt6 GUI to display richer current weather conditions.
+Improve minimal Version-0 PyQt6 GUI to display richer current weather conditions, to include all fetched current weather data.
 
 Requirements
 
