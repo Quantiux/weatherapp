@@ -36,7 +36,7 @@ MainWindow UI requirements
 
 The window must display:
 
-• weather icon (rendered SVG image) follwed by weather description
+• weather icon (rendered SVG image) followed by weather description in parentheses (as in Version-1)
 • temperature and other weather values already shown in Version-1
 
 Implementation requirements:
@@ -104,4 +104,4 @@ Weather icon is displayed visually (not as filename).
 
 Icon updates when Refresh Now is clicked.
 
-Weather description text remains visible below the icon.
+Weather description text remains visible next to the icon in parentheses.
