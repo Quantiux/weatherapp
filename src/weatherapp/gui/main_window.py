@@ -1,13 +1,18 @@
 """Main window implementation for WeatherApp."""
 
+from pathlib import Path
+
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QLabel,
     QPushButton,
     QMessageBox,
 )
-from PyQt6.QtCore import QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import QTimer, QThread, pyqtSignal, Qt
+from PyQt6.QtGui import QPixmap, QPainter
+from PyQt6.QtSvg import QSvgRenderer
 from typing import Optional
 
 from weatherapp.gui.worker import Worker
@@ -15,7 +20,7 @@ from weatherapp.utils.weather_code_mapper import get_svg_for_code, get_desc_for_
 
 
 class MainWindow(QWidget):
-    """Minimal main window for WeatherApp (Version-0).
+    """Minimal main window for WeatherApp (Version-0/1.1).
 
     This class sets up the basic UI widgets used to display current weather,
     wires them to a background Worker running in a QThread, and ensures that
@@ -36,7 +41,13 @@ class MainWindow(QWidget):
         super().__init__()
         self.setWindowTitle("WeatherApp")
 
-        # Basic widgets: temperature, description, and a manual refresh button
+        # Compute icons directory: src/weatherapp/icons
+        self._icons_dir = Path(__file__).resolve().parent.parent / "icons"
+
+        # Basic widgets: icon, description, temperature, and a manual refresh button
+        self.icon_label = QLabel()
+        self.icon_label.setFixedSize(64, 64)
+        self.icon_label.setScaledContents(False)
         self.weather_label = QLabel("--")
         self.temp_label = QLabel("--°F (Feels like: --°F)")
         self.humidity_label = QLabel("Humidity: --%")
@@ -49,9 +60,14 @@ class MainWindow(QWidget):
         self.uv_label = QLabel("UV index: --")
         self.refresh_button = QPushButton("Refresh Now")
 
+        # Top row: icon then weather description
+        top_row = QHBoxLayout()
+        top_row.addWidget(self.icon_label)
+        top_row.addWidget(self.weather_label)
+
         # Layout: vertical stack for simplicity and clarity
         layout = QVBoxLayout()
-        layout.addWidget(self.weather_label)
+        layout.addLayout(top_row)
         layout.addWidget(self.temp_label)
         layout.addWidget(self.humidity_label)
         layout.addWidget(self.cloud_label)
@@ -110,6 +126,28 @@ class MainWindow(QWidget):
         """
         self.request_fetch.emit()
 
+    def _load_svg_pixmap(self, svg_filename: str) -> Optional[QPixmap]:
+        """Load an SVG file from the icons directory and render it to a QPixmap.
+
+        Returns a 64x64 QPixmap on success or None on failure.
+        """
+        if not svg_filename:
+            return None
+        icon_path = self._icons_dir / svg_filename
+        if not icon_path.exists():
+            return None
+        try:
+            renderer = QSvgRenderer(str(icon_path))
+            pixmap = QPixmap(64, 64)
+            # Create a transparent pixmap and render the SVG into it
+            pixmap.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(pixmap)
+            renderer.render(painter)
+            painter.end()
+            return pixmap
+        except Exception:
+            return None
+
     def on_weather_fetched(self, data: dict) -> None:
         """Update UI widgets with data returned from the Worker.
 
@@ -118,19 +156,34 @@ class MainWindow(QWidget):
         unexpected structure triggers a non-fatal warning dialog.
         """
         try:
-            # Update weather icon/description
-            if "weather" in data:
+            # Icon and description: prefer a rendered icon when "svg" is present
+            svg = data.get("svg")
+            desc = data.get("description") or data.get("weather")
+            if svg:
+                pixmap = self._load_svg_pixmap(svg)
+                if pixmap:
+                    self.icon_label.setPixmap(pixmap)
+                else:
+                    self.icon_label.clear()
+            else:
+                self.icon_label.clear()
+
+            # Description text — keep parentheses as in Version-1
+            if desc:
+                self.weather_label.setText(f"({desc})")
+            elif "weather" in data:
                 self.weather_label.setText(str(data["weather"]))
-            elif "svg" in data or "description" in data:
-                svg = data.get("svg", "--")
-                desc = data.get("description", "--")
-                self.weather_label.setText(f"{svg} ({desc})")
+            else:
+                self.weather_label.setText("--")
 
             # Temperature and apparent temperature
             if "temperature_2m" in data or "apparent_temperature" in data:
                 tt = data.get("temperature_2m", "--")
                 at = data.get("apparent_temperature", "--")
-                self.temp_label.setText(f"{int(round(tt))}°F (Feels like: {int(round(at))}°F)")
+                try:
+                    self.temp_label.setText(f"{int(round(tt))}°F (Feels like: {int(round(at))}°F)")
+                except Exception:
+                    self.temp_label.setText(f"{tt}°F (Feels like: {at}°F)")
 
             # Humidity and cloud cover
             if "relative_humidity_2m" in data:
