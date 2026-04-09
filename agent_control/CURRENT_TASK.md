@@ -39,8 +39,8 @@ Grid typography:
 
 Improve readability of the data grid:
 
-- Slightly increase font size of value labels.
-- Keep field names left-aligned.
+- Slightly increase font size of field labels and values.
+- Keep field labels left-aligned.
 - Keep values right-aligned.
 
 Spacing:
