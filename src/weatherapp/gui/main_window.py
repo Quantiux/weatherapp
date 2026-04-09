@@ -38,8 +38,7 @@ class MainWindow(QWidget):
 
         # Basic widgets: temperature, description, and a manual refresh button
         self.weather_label = QLabel("--")
-        self.temp_label = QLabel("--°F")
-        self.apparent_label = QLabel("Feels like: --°F")
+        self.temp_label = QLabel("--°F (Feels like: --°F)")
         self.humidity_label = QLabel("Humidity: --%")
         self.cloud_label = QLabel("Cloud cover: --%")
         self.rain_label = QLabel("Rainfall: -- in")
@@ -54,7 +53,6 @@ class MainWindow(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.weather_label)
         layout.addWidget(self.temp_label)
-        layout.addWidget(self.apparent_label)
         layout.addWidget(self.humidity_label)
         layout.addWidget(self.cloud_label)
         layout.addWidget(self.rain_label)
@@ -129,10 +127,10 @@ class MainWindow(QWidget):
                 self.weather_label.setText(f"{svg} ({desc})")
 
             # Temperature and apparent temperature
-            if "temperature_2m" in data:
-                self.temp_label.setText(f"{int(round(data['temperature_2m']))}°F")
-            if "apparent_temperature" in data:
-                self.apparent_label.setText(f"Feels like: {int(round(data['apparent_temperature']))}°F")
+            if "temperature_2m" in data or "apparent_temperature" in data:
+                tt = data.get("temperature_2m", "--")
+                at = data.get("apparent_temperature", "--")
+                self.temp_label.setText(f"{int(round(tt))}°F (Feels like: {int(round(at))}°F)")
 
             # Humidity and cloud cover
             if "relative_humidity_2m" in data:
