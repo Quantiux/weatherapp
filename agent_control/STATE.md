@@ -8,45 +8,45 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 1.1
+Version: 1.2
 
 Description:
-Version-1.1 updates the MainWindow UI to render weather SVG icons (from src/weatherapp/icons/) and to continue displaying a richer set of current weather fields emitted by the Worker. The MainWindow now contains a QLabel for the rendered icon (scaled to ~64×64) plus the existing QLabel widgets for temperature, apparent temperature, humidity, cloud cover, rainfall total, snowfall, precipitation probability, wind speed and gusts, visibility, and UV index. The Worker already emits a comprehensive dict; no changes were made to data retrieval modules. Import-time checks in CI revealed PyQt6 may not be installed in the runner environment; runtime GUI validation should be done locally with Poetry and PyQt6 available.
+Version-1.2 updates the MainWindow UI to use a compact two-column QGridLayout for weather fields. The top row (icon 64×64 and weather description) is preserved. The manual refresh button and automatic 10-minute refresh remain unchanged. Worker threading and SVG rendering helpers are unchanged. Import-time checks in CI may fail if PyQt6 is not installed in the environment; runtime GUI validation should be run locally with Poetry and PyQt6 available.
 
 ---
 
 ## Implemented Features
 
-- MainWindow renders the SVG icon into a 64×64 QPixmap and sets it on an icon QLabel. The icon updates when new weather data arrives.
-- MainWindow displays weather payload fields in separate QLabel widgets and updates them in on_weather_fetched().
-- Layout uses a simple QVBoxLayout; manual refresh button and automatic 10-minute refresh remain unchanged.
-- Worker continues to run in a separate QThread; UI updates are performed from the main thread via signals.
+- MainWindow top row continues to show the rendered SVG icon and description in parentheses.
+- Weather fields (Temperature, Humidity, Cloud cover, Rainfall, Snowfall, Precip, Wind, Visibility, UV index) are now displayed in a two-column grid: static name labels in column 0 and dynamic value labels in column 1.
+- Layout is more compact compared to previous vertical stack.
+- Worker remains in a separate QThread and UI updates are performed via signals.
 
 ---
 
 ## Files Modified
 
-- `src/weatherapp/gui/main_window.py` (added icon QLabel, SVG rendering helper, and updated on_weather_fetched to set the pixmap)
-- `agent_control/PLAN.md` (updated task summary to Version-1.1)
+- `src/weatherapp/gui/main_window.py` (replaced vertical list with QGridLayout; added static name labels and aligned value labels)
+- `agent_control/PLAN.md` (updated to reflect Version-1.2 work)
 - `agent_control/STATE.md` (this file)
 
 ---
 
 ## Known Limitations
 
-- UI remains minimal and does not include styling; some SVGs may not render perfectly depending on Qt SVG support.
-- No forecasts are displayed in this version.
-- Import checks in the execution environment may fail if PyQt6 is not installed; this is environmental and not a code problem.
+- PyQt6 is not installed in the execution environment used for import checks; import validation failed with ModuleNotFoundError: No module named 'PyQt6'. This is an environment limitation rather than a code error.
+- Layout sizing may vary across desktop environments; the goal is compactness not pixel-perfect alignment.
+- No forecasts are included in this version.
 
 ---
 
 ## Next Planned Features
 
-1. Replace svg text with actual icon rendering in the UI (completed in this version).
-2. Expand UI to show forecasts in future versions.
+1. Expand UI to show forecasts in future versions.
+2. Add unit tests for GUI update logic where practical (requires PyQt6 in test environment).
 
 ---
 
 ## Notes for Future Development
 
-Ensure that worker.fetch continues to perform lazy imports. If the structured response format changes, MainWindow.on_weather_fetched handles missing fields gracefully and will not crash the application.
+Ensure that worker.fetch continues to perform lazy imports. MainWindow.on_weather_fetched handles missing fields gracefully and will not crash the application if payload structure changes.

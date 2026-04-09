@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
+    QGridLayout,
     QLabel,
     QPushButton,
     QMessageBox,
@@ -49,15 +50,17 @@ class MainWindow(QWidget):
         self.icon_label.setFixedSize(64, 64)
         self.icon_label.setScaledContents(False)
         self.weather_label = QLabel("--")
-        self.temp_label = QLabel("--°F (Feels like: --°F)")
-        self.humidity_label = QLabel("Humidity: --%")
-        self.cloud_label = QLabel("Cloud cover: --%")
-        self.rain_label = QLabel("Rainfall: -- in")
-        self.snow_label = QLabel("Snowfall: -- in")
-        self.precip_label = QLabel("Precip: --%")
-        self.wind_label = QLabel("Wind: -- mph (Gusts: -- mph)")
-        self.visibility_label = QLabel("Visibility: -- mi")
-        self.uv_label = QLabel("UV index: --")
+        self.temp_label = QLabel("--°F")
+        self.feels_label = QLabel("--°F")
+        self.humidity_label = QLabel("--%")
+        self.cloud_label = QLabel("--%")
+        self.rain_label = QLabel("-- in")
+        self.snow_label = QLabel("-- in")
+        self.precip_label = QLabel("--%")
+        self.wind_label = QLabel("-- mph")
+        self.gusts_label = QLabel("-- mph")
+        self.visibility_label = QLabel("-- mi")
+        self.uv_label = QLabel("--")
         self.refresh_button = QPushButton("Refresh Now")
 
         # Top row: icon then weather description
@@ -65,18 +68,33 @@ class MainWindow(QWidget):
         top_row.addWidget(self.icon_label)
         top_row.addWidget(self.weather_label)
 
-        # Layout: vertical stack for simplicity and clarity
+        # Layout: top row followed by a compact two-column grid of fields
         layout = QVBoxLayout()
         layout.addLayout(top_row)
-        layout.addWidget(self.temp_label)
-        layout.addWidget(self.humidity_label)
-        layout.addWidget(self.cloud_label)
-        layout.addWidget(self.rain_label)
-        layout.addWidget(self.snow_label)
-        layout.addWidget(self.precip_label)
-        layout.addWidget(self.wind_label)
-        layout.addWidget(self.visibility_label)
-        layout.addWidget(self.uv_label)
+
+        grid = QGridLayout()
+        # Column 0: field name labels (static); Column 1: value labels (dynamic)
+        field_names = [
+            ("Temperature:", self.temp_label),
+            ("Feels like:", self.feels_label),
+            ("Humidity:", self.humidity_label),
+            ("Cloud cover:", self.cloud_label),
+            ("Rainfall:", self.rain_label),
+            ("Snowfall:", self.snow_label),
+            ("Precip:", self.precip_label),
+            ("Wind:", self.wind_label),
+            ("Gusts:", self.gusts_label),
+            ("Visibility:", self.visibility_label),
+            ("UV index:", self.uv_label),
+        ]
+        for row, (name, widget) in enumerate(field_names):
+            name_label = QLabel(name)
+            name_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            widget.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            grid.addWidget(name_label, row, 0)
+            grid.addWidget(widget, row, 1)
+
+        layout.addLayout(grid)
         layout.addWidget(self.refresh_button)
         self.setLayout(layout)
 
@@ -177,39 +195,36 @@ class MainWindow(QWidget):
                 self.weather_label.setText("--")
 
             # Temperature and apparent temperature
-            if "temperature_2m" in data or "apparent_temperature" in data:
-                tt = data.get("temperature_2m", "--")
-                at = data.get("apparent_temperature", "--")
-                try:
-                    self.temp_label.setText(f"{int(round(tt))}°F (Feels like: {int(round(at))}°F)")
-                except Exception:
-                    self.temp_label.setText(f"{tt}°F (Feels like: {at}°F)")
+            if "temperature_2m" in data:
+                self.temp_label.setText(f"{int(round(data['temperature_2m']))}°F")
+            if "apparent_temperature" in data:
+                self.feels_label.setText(f"{int(round(data['apparent_temperature']))}°F")
 
             # Humidity and cloud cover
             if "relative_humidity_2m" in data:
-                self.humidity_label.setText(f"Humidity: {int(round(data['relative_humidity_2m']))}%")
+                self.humidity_label.setText(f"{int(round(data['relative_humidity_2m']))}%")
             if "cloud_cover" in data:
-                self.cloud_label.setText(f"Cloud cover: {int(round(data['cloud_cover']))}%")
+                self.cloud_label.setText(f"{int(round(data['cloud_cover']))}%")
 
             # Precipitation: rain and snowfall and precip probability
             if "rain" in data:
-                self.rain_label.setText(f"Rainfall: {float(data['rain']):.2f} in")
+                self.rain_label.setText(f"{float(data['rain']):.2f} in")
             if "snowfall" in data:
-                self.snow_label.setText(f"Snowfall: {float(data['snowfall']):.2f} in")
+                self.snow_label.setText(f"{float(data['snowfall']):.2f} in")
             if "precipitation_probability" in data:
-                self.precip_label.setText(f"Precip: {int(round(data['precipitation_probability']))}%")
+                self.precip_label.setText(f"{int(round(data['precipitation_probability']))}%")
 
-            # Wind
-            if "wind_speed" in data or "wind_gusts" in data:
-                ws = data.get("wind_speed", 0)
-                wg = data.get("wind_gusts", 0)
-                self.wind_label.setText(f"Wind: {float(ws):.1f} mph (Gusts: {float(wg):.1f} mph)")
+            # Wind and Gusts
+            if "wind_speed" in data:
+                self.wind_label.setText(f"{float(data['wind_speed']):.1f} mph")
+            if "wind_gusts" in data:
+                self.gusts_label.setText(f"{float(data['wind_gusts']):.1f} mph")
 
             # Visibility and UV index
             if "visibility" in data:
-                self.visibility_label.setText(f"Visibility: {float(data['visibility']):.1f} mi")
+                self.visibility_label.setText(f"{float(data['visibility']):.1f} mi")
             if "uv_index" in data:
-                self.uv_label.setText(f"UV index: {int(round(data['uv_index']))}")
+                self.uv_label.setText(f"{int(round(data['uv_index']))}")
 
         except Exception as exc:
             # Defensive: show error but don't crash the application
