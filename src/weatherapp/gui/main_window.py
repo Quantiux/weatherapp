@@ -1,9 +1,10 @@
 """Main window implementation for WeatherApp.
 
-Version-2.1: display mapping for visibility and UV index values and ensure
-hourly description shows the SVG icon immediately followed by the
-parenthesized description with no spacing. Only visual/display logic is
-changed — worker threads, networking, and data structures are unchanged.
+Version-2.2: display mapping for visibility and UV index values and show the
+next 24-hour hourly forecast beginning with the hour after the current hour.
+Wind and gust values are displayed rounded to the nearest integer.
+Only visual/display logic is changed — worker threads, networking, and data
+structures are unchanged.
 """
 
 from pathlib import Path
@@ -130,10 +131,10 @@ class MainWindow(QWidget):
         layout.addLayout(grid)
         layout.addWidget(self.refresh_button)
 
-        # --- Begin 48-hour forecast area (Version-2.1) ---
+        # --- Begin 24-hour forecast area (Version-2.2) ---
         from PyQt6.QtWidgets import QScrollArea, QFrame
 
-        forecast_header = QLabel("48-hr forecast:")
+        forecast_header = QLabel("24-hour forecast:")
         # Keep header styling minimal and consistent with current app style
         header_font = forecast_header.font()
         header_font.setPointSize(max(9, header_font.pointSize() + 2))
@@ -176,9 +177,9 @@ class MainWindow(QWidget):
             h.setAlignment(Qt.AlignmentFlag.AlignCenter)
             forecast_grid.addWidget(h, 0, col)
 
-        # Create placeholders for 48 rows of forecast widgets; store references
+        # Create placeholders for 24 rows of forecast widgets; store references
         self._forecast_rows = []
-        for row in range(1, 49):
+        for row in range(1, 25):
             cells = {}
             for col, key in enumerate(headers):
                 if key == "Description":
@@ -214,7 +215,7 @@ class MainWindow(QWidget):
         layout.addWidget(forecast_scroll)
         self.setLayout(layout)
 
-        # --- End 48-hour forecast area ---
+        # --- End 24-hour forecast area ---
 
         # Worker thread setup: create thread, worker, and connect signals/slots
         self._thread: Optional[QThread] = QThread()
@@ -391,9 +392,16 @@ class MainWindow(QWidget):
 
             # Wind and Gusts
             if "wind_speed" in data:
-                self.wind_label.setText(f"{float(data['wind_speed']):.1f} mph")
+                try:
+                    # Round to nearest integer per Version-2.2
+                    self.wind_label.setText(f"{int(round(float(data['wind_speed'])))} mph")
+                except Exception:
+                    self.wind_label.setText(f"{float(data['wind_speed']):.1f} mph")
             if "wind_gusts" in data:
-                self.gusts_label.setText(f"{float(data['wind_gusts']):.1f} mph")
+                try:
+                    self.gusts_label.setText(f"{int(round(float(data['wind_gusts'])))} mph")
+                except Exception:
+                    self.gusts_label.setText(f"{float(data['wind_gusts']):.1f} mph")
 
             # Visibility and UV index — map to text categories per CURRENT_TASK.md
             if "visibility" in data:
@@ -404,7 +412,7 @@ class MainWindow(QWidget):
             # Hourly forecast: update forecast rows if present
             hourly = data.get("hourly")
             if hourly and isinstance(hourly, list):
-                for i, item in enumerate(hourly[:48]):
+                for i, item in enumerate(hourly[:24]):
                     cells = self._forecast_rows[i]
                     # Time
                     cells["Time"].setText(item.get("Time", "--"))
@@ -452,8 +460,23 @@ class MainWindow(QWidget):
                     cells["Rainfall"].setText(_fmt_num("Rainfall", "{:.2f} in"))
                     cells["Snowfall"].setText(_fmt_num("Snowfall", "{:.2f} in"))
                     cells["Precip."].setText(_fmt_num("Precip.", "{:.0f}%"))
-                    cells["Wind"].setText(_fmt_num("Wind", "{:.1f} mph"))
-                    cells["Gusts"].setText(_fmt_num("Gusts", "{:.1f} mph"))
+                    # Wind and Gusts should be rounded to nearest integer per Version-2.2
+                    wind_val = item.get("Wind")
+                    gust_val = item.get("Gusts")
+                    if wind_val is None:
+                        cells["Wind"].setText("--")
+                    else:
+                        try:
+                            cells["Wind"].setText(f"{int(round(float(wind_val)))} mph")
+                        except Exception:
+                            cells["Wind"].setText(_fmt_num("Wind", "{:.1f} mph"))
+                    if gust_val is None:
+                        cells["Gusts"].setText("--")
+                    else:
+                        try:
+                            cells["Gusts"].setText(f"{int(round(float(gust_val)))} mph")
+                        except Exception:
+                            cells["Gusts"].setText(_fmt_num("Gusts", "{:.1f} mph"))
 
                     # Visibility -> textual category
                     vis_val = item.get("Visibility")

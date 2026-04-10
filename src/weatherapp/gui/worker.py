@@ -7,7 +7,7 @@ import time to keep the GUI modules importable for tests and static checks.
 
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 from typing import Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 # Import weather fetcher lazily inside fetch() to avoid heavy imports at module import time
@@ -87,6 +87,23 @@ class Worker(QObject):
                 svg = get_svg_for_code(weather_code, tod)
                 desc = get_desc_for_code(weather_code)
 
+                # Round wind and gusts to nearest integer per Version-2.2 requirements
+                try:
+                    wind_speed = int(round(float(current.Variables(9).Value())))
+                except Exception:
+                    # fallback to previously parsed value
+                    try:
+                        wind_speed = int(round(float(wind_speed)))
+                    except Exception:
+                        pass
+                try:
+                    wind_gusts = int(round(float(current.Variables(10).Value())))
+                except Exception:
+                    try:
+                        wind_gusts = int(round(float(wind_gusts)))
+                    except Exception:
+                        pass
+
                 result = {
                     "weather": f"{svg} ({desc})",
                     "temperature_2m": temp,
@@ -163,6 +180,22 @@ class Worker(QObject):
                     rain_total = float(rain_arr[i]) + float(showers_arr[i])
                     vis_miles = float(visibility_arr[i]) * 0.000621371
 
+                    # Round wind and gusts to nearest integer for each hourly item
+                    try:
+                        wind_val = int(round(float(wind_speed_arr[i])))
+                    except Exception:
+                        try:
+                            wind_val = int(round(float(wind_speed_arr[i].item())))
+                        except Exception:
+                            wind_val = None
+                    try:
+                        gust_val = int(round(float(wind_gusts_arr[i])))
+                    except Exception:
+                        try:
+                            gust_val = int(round(float(wind_gusts_arr[i].item())))
+                        except Exception:
+                            gust_val = None
+
                     hourly_item = {
                         "Time": time_label,
                         "svg": svg_name,
@@ -174,14 +207,26 @@ class Worker(QObject):
                         "Rainfall": float(rain_total),
                         "Snowfall": float(snowfall_arr[i]),
                         "Precip.": float(precip_prob_arr[i]),
-                        "Wind": float(wind_speed_arr[i]),
-                        "Gusts": float(wind_gusts_arr[i]),
+                        "Wind": wind_val,
+                        "Gusts": gust_val,
                         "Visibility": float(vis_miles),
                         "UV": float(uv_index_arr[i]),
                     }
                     hourly_list.append(hourly_item)
 
-                result["hourly"] = hourly_list
+                # Select the next 24 hours beginning with the hour after the current hour
+                try:
+                    now_ts = int(datetime.now(timezone.utc).timestamp())
+                    current_index = int((now_ts - start_ts) // interval)
+                    start_index = current_index + 1
+                    if start_index < 0:
+                        start_index = 0
+                    hourly_slice = hourly_list[start_index : start_index + 24]
+                    if not hourly_slice:
+                        hourly_slice = hourly_list[:24]
+                    result["hourly"] = hourly_slice
+                except Exception:
+                    result["hourly"] = hourly_list[:24]
             except Exception:
                 # If hourly extraction fails, omit hourly key but continue
                 pass

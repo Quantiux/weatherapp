@@ -8,25 +8,25 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 2.1
+Version: 2.2
 
 Description:
-Version-2.1 updates the MainWindow UI to display textual mappings for Visibility and UV Index values and to ensure the Hourly forecast Description column renders the SVG icon immediately followed by the parenthesized description text with no intervening space. These changes are display-only and do not affect worker threads, networking, or data structures.
+Version-2.2 updates the MainWindow UI to display current weather (unchanged layout/styling) and a 24-hour hourly forecast starting with the hour after the current hour. Wind and gust values are rounded to the nearest integer in both current and forecast displays. These changes are display/data-shaping only and do not affect worker threading, networking, or data structures beyond the worker emitting a trimmed hourly payload.
 
 ---
 
 ## Implemented Features
 
-- Visibility numeric values (miles) are now displayed as textual categories: Clear, Fair, Poor, Zero according to the rules in CURRENT_TASK.md.
-- UV index numeric values are now displayed as textual categories: Low, Moderate, High, Very High, Extreme according to CURRENT_TASK.md.
-- Hourly forecast description cells have had their internal spacing removed so the 24×24 icon appears directly adjacent to the parenthesized description with no extra space between them.
-- The main current-weather display and worker threading behavior remain unchanged.
+- Worker now emits an "hourly" key containing the next 24 hourly forecast items starting with the hour after the current hour.
+- Wind and Gusts values are rounded to the nearest integer in both current weather and hourly forecast displays.
+- The MainWindow forecast UI shows 24 rows under the header "24-hour forecast:" and preserves existing current-weather layout and styling.
 
 ---
 
 ## Files Modified
 
-- `src/weatherapp/gui/main_window.py` (display mapping for visibility and UV index; adjust description cell spacing)
+- `src/weatherapp/gui/worker.py` (rounded wind/gusts values and trimmed hourly payload to next 24 hours)
+- `src/weatherapp/gui/main_window.py` (display rounded wind/gusts values; forecast area now shows 24 rows with header "24-hour forecast:")
 
 ---
 
@@ -34,7 +34,7 @@ Version-2.1 updates the MainWindow UI to display textual mappings for Visibility
 
 - PyQt6 may not be installed in the execution environment; import or runtime checks requiring PyQt6 could fail. This is an environment limitation rather than a code error.
 - Rendering and exact layout depend on platform font metrics; aim is functional alignment and readability rather than pixel-perfect appearance.
-- If the data-layer response structure changes, the Worker falls back to omitting the hourly key; MainWindow handles missing hourly gracefully.
+- If the data-layer response structure changes, the Worker falls back to omitting or trimming the hourly key; MainWindow handles missing or shorter hourly lists gracefully.
 
 ---
 
