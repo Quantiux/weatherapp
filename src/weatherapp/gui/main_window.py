@@ -1,8 +1,9 @@
 """Main window implementation for WeatherApp.
 
-Version-1.3: typography and alignment improvements only. Changes are
-restricted to visual presentation (icon size/alignment, fonts, spacing)
-and do not affect worker threads, networking, or data structures.
+Version-2.1: display mapping for visibility and UV index values and ensure
+hourly description shows the SVG icon immediately followed by the
+parenthesized description with no spacing. Only visual/display logic is
+changed — worker threads, networking, and data structures are unchanged.
 """
 
 from pathlib import Path
@@ -26,9 +27,9 @@ from weatherapp.utils.weather_code_mapper import get_svg_for_code, get_desc_for_
 
 
 class MainWindow(QWidget):
-    """Main window for WeatherApp with minor UI typography tweaks.
+    """Main window for WeatherApp with display adjustments for Version-2.1.
 
-    All behavioral logic (threads, signals, data handling) is unchanged.
+    Behavioral logic (threads, signals, data handling) is unchanged.
     """
 
     # Expose a signal to request the worker to fetch (queued across threads)
@@ -49,7 +50,7 @@ class MainWindow(QWidget):
 
         # Basic widgets: icon, description, temperature, and a manual refresh button
         self.icon_label = QLabel()
-        # Render a smaller SVG icon (~48x48) for Version-1.3 and avoid
+        # Render a smaller SVG icon (~48x48) for Version-2.1 and avoid
         # stretching by disabling scaledContents and controlling rendering
         # in _load_svg_pixmap.
         self.icon_label.setFixedSize(48, 48)
@@ -72,7 +73,7 @@ class MainWindow(QWidget):
         self.precip_label = QLabel("--%")
         self.wind_label = QLabel("-- mph")
         self.gusts_label = QLabel("-- mph")
-        self.visibility_label = QLabel("-- mi")
+        self.visibility_label = QLabel("--")
         self.uv_label = QLabel("--")
         self.refresh_button = QPushButton("Refresh Now")
 
@@ -129,7 +130,7 @@ class MainWindow(QWidget):
         layout.addLayout(grid)
         layout.addWidget(self.refresh_button)
 
-        # --- Begin 48-hour forecast area (Version-2) ---
+        # --- Begin 48-hour forecast area (Version-2.1) ---
         from PyQt6.QtWidgets import QScrollArea, QFrame
 
         forecast_header = QLabel("48-hr forecast:")
@@ -184,12 +185,14 @@ class MainWindow(QWidget):
                     # Use a horizontal layout with icon QLabel and text QLabel
                     cell_widget = QWidget()
                     cell_layout = QHBoxLayout()
+                    # Remove spacing so the icon and the parentheses touch
                     cell_layout.setContentsMargins(0, 0, 0, 0)
-                    cell_layout.setSpacing(6)
+                    cell_layout.setSpacing(0)
                     icon = QLabel()
                     icon.setFixedSize(24, 24)
                     icon.setScaledContents(False)
                     text = QLabel("--")
+                    # Left-align text next to the icon with no extra gap
                     text.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                     cell_layout.addWidget(icon)
                     cell_layout.addWidget(text)
@@ -291,6 +294,53 @@ class MainWindow(QWidget):
         except Exception:
             return None
 
+    def _visibility_text(self, vis_val) -> str:
+        """Map numeric visibility (miles) to textual categories.
+
+        Rules:
+        - "Clear" if visibility is 10 miles or more
+        - "Fair" if visibility is 5 miles or more but less than 10 miles
+        - "Poor" if visibility is 1 mile or more but less than 5 miles
+        - "Zero" otherwise
+        """
+        try:
+            v = float(vis_val)
+        except Exception:
+            return "--"
+        if v >= 10:
+            return "Clear"
+        if v >= 5:
+            return "Fair"
+        if v >= 1:
+            return "Poor"
+        return "Zero"
+
+    def _uv_text(self, uv_val) -> str:
+        """Map numeric UV index to textual categories.
+
+        Rules:
+        - "Low" if UV Index is 2 or less
+        - "Moderate" if UV Index is 3 to 5
+        - "High" if UV Index is 6 to 7
+        - "Very High" if UV Index is 8 to 10
+        - "Extreme" if UV Index is 11 or more
+        """
+        try:
+            u = float(uv_val)
+        except Exception:
+            return "--"
+        if u <= 2:
+            return "Low"
+        if 3 <= u <= 5:
+            return "Moderate"
+        if 6 <= u <= 7:
+            return "High"
+        if 8 <= u <= 10:
+            return "Very High"
+        if u >= 11:
+            return "Extreme"
+        return "--"
+
     def on_weather_fetched(self, data: dict) -> None:
         """Update UI widgets with data returned from the Worker.
 
@@ -345,11 +395,11 @@ class MainWindow(QWidget):
             if "wind_gusts" in data:
                 self.gusts_label.setText(f"{float(data['wind_gusts']):.1f} mph")
 
-            # Visibility and UV index
+            # Visibility and UV index — map to text categories per CURRENT_TASK.md
             if "visibility" in data:
-                self.visibility_label.setText(f"{float(data['visibility']):.1f} mi")
+                self.visibility_label.setText(self._visibility_text(data["visibility"]))
             if "uv_index" in data:
-                self.uv_label.setText(f"{int(round(data['uv_index']))}")
+                self.uv_label.setText(self._uv_text(data["uv_index"]))
 
             # Hourly forecast: update forecast rows if present
             hourly = data.get("hourly")
@@ -358,7 +408,8 @@ class MainWindow(QWidget):
                     cells = self._forecast_rows[i]
                     # Time
                     cells["Time"].setText(item.get("Time", "--"))
-                    # Description: load svg into icon QLabel and set text
+                    # Description: load svg into icon QLabel and set text with no
+                    # separating space so the icon and parentheses touch visually.
                     svg_name = item.get("svg")
                     if svg_name:
                         try:
@@ -374,14 +425,15 @@ class MainWindow(QWidget):
                             cells["Description_icon"].clear()
                     else:
                         cells["Description_icon"].clear()
-                    # Description text
+                    # Description text (parentheses) with no leading space
                     desc_text = item.get("description")
                     if desc_text:
                         cells["Description_text"].setText(f"({desc_text})")
                     else:
                         cells["Description_text"].setText("--")
 
-                    # Numeric fields formatted similar to current view
+                    # Numeric fields formatted similar to current view but
+                    # Visibility and UV map to textual categories.
                     def _fmt_num(key, fmt):
                         val = item.get(key)
                         if val is None:
@@ -402,8 +454,26 @@ class MainWindow(QWidget):
                     cells["Precip."].setText(_fmt_num("Precip.", "{:.0f}%"))
                     cells["Wind"].setText(_fmt_num("Wind", "{:.1f} mph"))
                     cells["Gusts"].setText(_fmt_num("Gusts", "{:.1f} mph"))
-                    cells["Visibility"].setText(_fmt_num("Visibility", "{:.1f} mi"))
-                    cells["UV"].setText(_fmt_num("UV", "{:.2f}"))
+
+                    # Visibility -> textual category
+                    vis_val = item.get("Visibility")
+                    if vis_val is None:
+                        cells["Visibility"].setText("--")
+                    else:
+                        try:
+                            cells["Visibility"].setText(self._visibility_text(vis_val))
+                        except Exception:
+                            cells["Visibility"].setText("--")
+
+                    # UV -> textual category
+                    uv_val = item.get("UV")
+                    if uv_val is None:
+                        cells["UV"].setText("--")
+                    else:
+                        try:
+                            cells["UV"].setText(self._uv_text(uv_val))
+                        except Exception:
+                            cells["UV"].setText("--")
 
         except Exception as exc:
             # Defensive: show error but don't crash the application

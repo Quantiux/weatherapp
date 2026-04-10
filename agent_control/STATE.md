@@ -8,28 +8,25 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 2.0
+Version: 2.1
 
 Description:
-Version-2 extends the MainWindow UI to display a 48-hour hourly forecast below the current weather fields. The current weather layout and styling were preserved exactly. New forecast area renders a 13-column grid (Time, Description, Temp, Feels, Humidity, Cloud cover, Rainfall, Snowfall, Precip., Wind, Gusts, Visibility, UV) with 48 rows and 24×24 SVG icons for hourly descriptions.
+Version-2.1 updates the MainWindow UI to display textual mappings for Visibility and UV Index values and to ensure the Hourly forecast Description column renders the SVG icon immediately followed by the parenthesized description text with no intervening space. These changes are display-only and do not affect worker threads, networking, or data structures.
 
 ---
 
 ## Implemented Features
 
-- Worker now emits an "hourly" key in the weather_fetched payload: a list of hourly dicts covering the next available hours (up to 48). Each hourly dict contains Time, svg (filename), description, Temp, Feels, Humidity, Cloud cover, Rainfall, Snowfall, Precip., Wind, Gusts, Visibility, UV.
-- MainWindow displays a new forecast area beneath the existing current-weather widgets. The forecast area includes a header "48-hr forecast:" and a scrollable grid showing 48 rows in a 13-column layout.
-- Forecast icons are rendered at 24×24 using QSvgRenderer → QPixmap and set on QLabel widgets. Icons appear before the description text (description kept in parentheses).
-- Initial fetch is requested when the window initializes.
+- Visibility numeric values (miles) are now displayed as textual categories: Clear, Fair, Poor, Zero according to the rules in CURRENT_TASK.md.
+- UV index numeric values are now displayed as textual categories: Low, Moderate, High, Very High, Extreme according to CURRENT_TASK.md.
+- Hourly forecast description cells have had their internal spacing removed so the 24×24 icon appears directly adjacent to the parenthesized description with no extra space between them.
+- The main current-weather display and worker threading behavior remain unchanged.
 
 ---
 
 ## Files Modified
 
-- `src/weatherapp/gui/main_window.py` (added 48-hr forecast UI, rendering logic for 24×24 icons, and initial fetch)
-- `src/weatherapp/gui/worker.py` (added hourly payload generation to weather_fetched signal)
-- `agent_control/PLAN.md` (updated to Version-2 plan)
-- `agent_control/STATE.md` (this file)
+- `src/weatherapp/gui/main_window.py` (display mapping for visibility and UV index; adjust description cell spacing)
 
 ---
 
@@ -43,8 +40,8 @@ Version-2 extends the MainWindow UI to display a 48-hour hourly forecast below t
 
 ## Next Planned Features
 
-1. Add unit tests for the Worker hourly payload formatting (requires network mocks).
-2. Optimize forecast area performance for very slow CPUs by virtualizing rows if needed.
+1. Add unit tests for visibility and UV mapping functions.
+2. Add visual regression snapshots for the forecast area in CI if a headless Qt environment is available.
 
 ---
 
