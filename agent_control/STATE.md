@@ -8,34 +8,35 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 1.2
+Version: 1.3
 
 Description:
-Version-1.2 updates the MainWindow UI to use a compact two-column QGridLayout for weather fields. The top row (icon 64×64 and weather description) is preserved. The manual refresh button and automatic 10-minute refresh remain unchanged. Worker threading and SVG rendering helpers are unchanged. Import-time checks in CI may fail if PyQt6 is not installed in the environment; runtime GUI validation should be run locally with Poetry and PyQt6 available.
+Version-1.3 updates the MainWindow UI with typography and alignment improvements: the SVG icon is rendered at ~48×48 and aligned with the description text; description font size and weight are increased (parentheses preserved); grid label fonts are slightly larger; spacing and margins were adjusted for visual clarity. No changes were made to worker threading, networking, data structures, or refresh behavior.
 
 ---
 
 ## Implemented Features
 
-- MainWindow top row continues to show the rendered SVG icon and description in parentheses.
-- Weather fields (Temperature, Humidity, Cloud cover, Rainfall, Snowfall, Precip, Wind, Visibility, UV index) are now displayed in a two-column grid: static name labels in column 0 and dynamic value labels in column 1.
-- Layout is more compact compared to previous vertical stack.
-- Worker remains in a separate QThread and UI updates are performed via signals.
+- SVG icon rendered at ~48×48 and centered in its QLabel to avoid distortion.
+- Weather description text made visually prominent (larger, bold) and remains wrapped in parentheses.
+- Weather data grid uses slightly larger fonts for both names and values, with names left-aligned and values right-aligned.
+- Increased spacing between icon and description, and between grid rows; layout margins adjusted for clarity.
+- No behavioral changes to worker threads, signals, or networking.
 
 ---
 
 ## Files Modified
 
-- `src/weatherapp/gui/main_window.py` (replaced vertical list with QGridLayout; added static name labels and aligned value labels)
-- `agent_control/PLAN.md` (updated to reflect Version-1.2 work)
+- `src/weatherapp/gui/main_window.py` (typography, icon rendering size/alignment, spacing, and label fonts)
+- `agent_control/PLAN.md` (updated to reflect Version-1.3 work)
 - `agent_control/STATE.md` (this file)
 
 ---
 
 ## Known Limitations
 
-- PyQt6 is not installed in the execution environment used for import checks; import validation failed with ModuleNotFoundError: No module named 'PyQt6'. This is an environment limitation rather than a code error.
-- Layout sizing may vary across desktop environments; the goal is compactness not pixel-perfect alignment.
+- PyQt6 may not be installed in the execution environment; import or runtime checks requiring PyQt6 could fail. This is an environment limitation rather than a code error.
+- Layout sizing may vary across desktop environments; the goal is improved readability and alignment, not pixel-perfect consistency.
 - No forecasts are included in this version.
 
 ---

@@ -1,4 +1,9 @@
-"""Main window implementation for WeatherApp."""
+"""Main window implementation for WeatherApp.
+
+Version-1.3: typography and alignment improvements only. Changes are
+restricted to visual presentation (icon size/alignment, fonts, spacing)
+and do not affect worker threads, networking, or data structures.
+"""
 
 from pathlib import Path
 
@@ -11,8 +16,8 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QMessageBox,
 )
-from PyQt6.QtCore import QTimer, QThread, pyqtSignal, Qt
-from PyQt6.QtGui import QPixmap, QPainter
+from PyQt6.QtCore import QTimer, QThread, pyqtSignal, Qt, QRectF
+from PyQt6.QtGui import QPixmap, QPainter, QFont
 from PyQt6.QtSvg import QSvgRenderer
 from typing import Optional
 
@@ -21,12 +26,9 @@ from weatherapp.utils.weather_code_mapper import get_svg_for_code, get_desc_for_
 
 
 class MainWindow(QWidget):
-    """Minimal main window for WeatherApp (Version-0/1.1).
+    """Main window for WeatherApp with minor UI typography tweaks.
 
-    This class sets up the basic UI widgets used to display current weather,
-    wires them to a background Worker running in a QThread, and ensures that
-    all network I/O happens off the Qt main thread. UI updates are performed
-    only in response to signals from the Worker.
+    All behavioral logic (threads, signals, data handling) is unchanged.
     """
 
     # Expose a signal to request the worker to fetch (queued across threads)
@@ -47,7 +49,10 @@ class MainWindow(QWidget):
 
         # Basic widgets: icon, description, temperature, and a manual refresh button
         self.icon_label = QLabel()
-        self.icon_label.setFixedSize(64, 64)
+        # Render a smaller SVG icon (~48x48) for Version-1.3 and avoid
+        # stretching by disabling scaledContents and controlling rendering
+        # in _load_svg_pixmap.
+        self.icon_label.setFixedSize(48, 48)
         self.icon_label.setScaledContents(False)
         self.weather_label = QLabel("--")
         self.temp_label = QLabel("--°F")
@@ -63,16 +68,25 @@ class MainWindow(QWidget):
         self.uv_label = QLabel("--")
         self.refresh_button = QPushButton("Refresh Now")
 
-        # Top row: icon then weather description
+        # Top row: icon then weather description. Keep a small spacing
+        # between the icon and the description and align them vertically.
         top_row = QHBoxLayout()
+        top_row.setSpacing(8)
+        top_row.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         top_row.addWidget(self.icon_label)
         top_row.addWidget(self.weather_label)
 
         # Layout: top row followed by a compact two-column grid of fields
         layout = QVBoxLayout()
+        # Improve overall spacing and margins for clarity
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
         layout.addLayout(top_row)
 
         grid = QGridLayout()
+        # Increase spacing between rows/columns so entries are easier to read
+        grid.setVerticalSpacing(8)
+        grid.setHorizontalSpacing(12)
         # Column 0: field name labels (static); Column 1: value labels (dynamic)
         field_names = [
             ("Temperature:", self.temp_label),
@@ -89,8 +103,18 @@ class MainWindow(QWidget):
         ]
         for row, (name, widget) in enumerate(field_names):
             name_label = QLabel(name)
+            # Slightly larger font for readability
+            name_font = name_label.font()
+            name_font.setPointSize(max(9, name_font.pointSize() + 1))
+            name_label.setFont(name_font)
             name_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+
+            # Increase value label font size as well and keep right alignment
+            val_font = widget.font()
+            val_font.setPointSize(max(9, val_font.pointSize() + 1))
+            widget.setFont(val_font)
             widget.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
             grid.addWidget(name_label, row, 0)
             grid.addWidget(widget, row, 1)
 
@@ -147,7 +171,9 @@ class MainWindow(QWidget):
     def _load_svg_pixmap(self, svg_filename: str) -> Optional[QPixmap]:
         """Load an SVG file from the icons directory and render it to a QPixmap.
 
-        Returns a 64x64 QPixmap on success or None on failure.
+        Returns a 48x48 QPixmap on success or None on failure. The SVG is
+        rendered into a square target while preserving aspect ratio to avoid
+        distortion.
         """
         if not svg_filename:
             return None
@@ -156,11 +182,16 @@ class MainWindow(QWidget):
             return None
         try:
             renderer = QSvgRenderer(str(icon_path))
-            pixmap = QPixmap(64, 64)
-            # Create a transparent pixmap and render the SVG into it
+            size = 48
+            pixmap = QPixmap(size, size)
+            # Create a transparent pixmap and render the SVG into a centered
+            # rectangle so aspect ratio is preserved and the icon is not
+            # distorted.
             pixmap.fill(Qt.GlobalColor.transparent)
             painter = QPainter(pixmap)
-            renderer.render(painter)
+            # Target rect covers the full pixmap; QSvgRenderer preserves
+            # aspect ratio when rendering into a QRectF if the viewBox is set
+            renderer.render(painter, QRectF(0, 0, float(size), float(size)))
             painter.end()
             return pixmap
         except Exception:
@@ -188,7 +219,14 @@ class MainWindow(QWidget):
 
             # Description text — keep parentheses as in Version-1
             if desc:
+                # Make the description visually prominent compared to the
+                # data-grid labels while preserving the parentheses per the
+                # version requirement.
                 self.weather_label.setText(f"({desc})")
+                desc_font = self.weather_label.font()
+                desc_font.setPointSize(max(11, desc_font.pointSize() + 3))
+                desc_font.setBold(True)
+                self.weather_label.setFont(desc_font)
             elif "weather" in data:
                 self.weather_label.setText(str(data["weather"]))
             else:
