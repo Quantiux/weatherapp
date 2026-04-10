@@ -55,6 +55,14 @@ class MainWindow(QWidget):
         self.icon_label.setFixedSize(48, 48)
         self.icon_label.setScaledContents(False)
         self.weather_label = QLabel("--")
+        # Make the description visually prominent compared to the
+        # data-grid labels while preserving the parentheses per the
+        # version requirement.
+        desc_font = self.weather_label.font()
+        desc_font.setPointSize(max(11, desc_font.pointSize() + 4))
+        desc_font.setBold(True)
+        self.weather_label.setFont(desc_font)
+
         self.temp_label = QLabel("--°F")
         self.feels_label = QLabel("--°F")
         self.humidity_label = QLabel("--%")
@@ -219,14 +227,7 @@ class MainWindow(QWidget):
 
             # Description text — keep parentheses as in Version-1
             if desc:
-                # Make the description visually prominent compared to the
-                # data-grid labels while preserving the parentheses per the
-                # version requirement.
                 self.weather_label.setText(f"({desc})")
-                desc_font = self.weather_label.font()
-                desc_font.setPointSize(max(11, desc_font.pointSize() + 3))
-                desc_font.setBold(True)
-                self.weather_label.setFont(desc_font)
             elif "weather" in data:
                 self.weather_label.setText(str(data["weather"]))
             else:
