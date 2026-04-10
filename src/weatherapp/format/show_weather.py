@@ -62,7 +62,7 @@ def format_columns(df: pd.DataFrame, col_map: Dict[str, str]) -> None:
                 return f"{int(round(float(val)))}°F"
             if var in {"Rainfall", "Snowfall"}:
                 return f"{float(val):.1f}in"
-            if var in {"Humidity", "Rain Prob.", "Cloud Cover"}:
+            if var in {"Humidity", "Precip.", "Cloud cover"}:
                 return f"{float(val):.0f}%"
             if var in {"Wind", "Gusts"}:
                 return f"{int(round(float(val)))}mph"
@@ -194,17 +194,17 @@ def parse_hourly(response: Any) -> None:
         hourly_df = pd.DataFrame(
             {
                 "Time": hours,
-                "Conditions": weather_desc,
+                "Description": weather_desc,
                 "Temp": temperature,
                 "Feels": apparent_temperature,
                 "Humidity": relative_humidity,
-                "Rain Prob.": precip_prob,
+                "Cloud cover": cloud_cover,
                 "Rainfall": rain_total,
                 "Snowfall": snowfall,
-                "Cloud Cover": cloud_cover,
-                "Visibility": visibility,
+                "Precip.": precip_prob,
                 "Wind": wind_speed,
                 "Gusts": wind_gusts,
+                "Visibility": visibility,
                 "UV": uv_index,
             }
         )
@@ -214,13 +214,13 @@ def parse_hourly(response: Any) -> None:
             "Temp": "Temp",
             "Feels": "Feels",
             "Humidity": "Humidity",
-            "Rain Prob.": "Rain Prob.",
+            "Cloud cover": "Cloud cover",
             "Rainfall": "Rainfall",
             "Snowfall": "Snowfall",
-            "Cloud Cover": "Cloud Cover",
-            "Visibility": "Visibility",
+            "Precip.": "Precip.",
             "Wind": "Wind",
             "Gusts": "Gusts",
+            "Visibility": "Visibility",
         }
         format_columns(hourly_df, col_map)
 
