@@ -1,4 +1,7 @@
 .venv
+agent_control
 tests
 *.lock
 *.bak
+*.sqlite
+run_hermes.sh
