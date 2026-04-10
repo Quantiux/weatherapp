@@ -135,7 +135,7 @@ class MainWindow(QWidget):
         forecast_header = QLabel("48-hr forecast:")
         # Keep header styling minimal and consistent with current app style
         header_font = forecast_header.font()
-        header_font.setPointSize(max(9, header_font.pointSize() + 1))
+        header_font.setPointSize(max(9, header_font.pointSize() + 2))
         header_font.setBold(True)
         forecast_header.setFont(header_font)
 
