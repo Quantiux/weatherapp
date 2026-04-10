@@ -7,6 +7,8 @@ import time to keep the GUI modules importable for tests and static checks.
 
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 from typing import Any
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 # Import weather fetcher lazily inside fetch() to avoid heavy imports at module import time
 # (keeps GUI importable for testing and static analysis).
@@ -47,11 +49,13 @@ class Worker(QObject):
         """
         try:
             # Import the data-layer fetcher here to avoid heavy imports at module import time
-            from weatherapp.data.get_weather_data import fetch_weather
+            from weatherapp.data.get_weather_data import fetch_weather, TIMEZONE
             # lightweight helpers for mapping codes
             from weatherapp.utils.weather_code_mapper import get_svg_for_code, get_desc_for_code
 
             response = fetch_weather(self.coords)
+
+            result = {}
 
             try:
                 current = response.Current()
@@ -104,6 +108,83 @@ class Worker(QObject):
             except Exception:
                 # Fallback: pass the whole response if structured access fails
                 result = {"response": response}
+
+            # Build hourly payload (list of 48 dicts) when available
+            try:
+                hourly = response.Hourly()
+                # Variables indices correspond to get_weather_data params
+                temperature = hourly.Variables(0).ValuesAsNumpy()
+                relative_humidity = hourly.Variables(1).ValuesAsNumpy()
+                apparent_temperature = hourly.Variables(2).ValuesAsNumpy()
+                is_day_arr = hourly.Variables(3).ValuesAsNumpy()
+                precip_prob_arr = hourly.Variables(4).ValuesAsNumpy()
+                weather_code_arr = hourly.Variables(5).ValuesAsNumpy()
+                rain_arr = hourly.Variables(6).ValuesAsNumpy()
+                showers_arr = hourly.Variables(7).ValuesAsNumpy()
+                snowfall_arr = hourly.Variables(8).ValuesAsNumpy()
+                cloud_cover_arr = hourly.Variables(9).ValuesAsNumpy()
+                visibility_arr = hourly.Variables(10).ValuesAsNumpy()
+                wind_speed_arr = hourly.Variables(11).ValuesAsNumpy()
+                wind_gusts_arr = hourly.Variables(12).ValuesAsNumpy()
+                uv_index_arr = hourly.Variables(13).ValuesAsNumpy()
+
+                # Calculate time labels using Time (start) and Interval
+                start_ts = int(hourly.Time())
+                interval = int(hourly.Interval())
+                # number of points
+                length = len(temperature)
+
+                tz = ZoneInfo(TIMEZONE)
+
+                hourly_list = []
+                for i in range(length):
+                    ts = start_ts + i * interval
+                    dt = datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(tz)
+                    # Format like "10:00 AM"
+                    try:
+                        time_label = dt.strftime("%-I:%M %p")
+                    except Exception:
+                        # Fallback for environments without %- modifier (e.g., Windows)
+                        time_label = dt.strftime("%I:%M %p").lstrip("0")
+
+                    is_day_val = bool(is_day_arr[i])
+                    tod = "day" if is_day_val else "night"
+                    code = int(weather_code_arr[i]) if weather_code_arr is not None else None
+                    svg_name = None
+                    desc = ""
+                    try:
+                        if code is not None:
+                            svg_name = get_svg_for_code(code, tod)
+                            desc = get_desc_for_code(code)
+                    except Exception:
+                        svg_name = None
+                        desc = ""
+
+                    rain_total = float(rain_arr[i]) + float(showers_arr[i])
+                    vis_miles = float(visibility_arr[i]) * 0.000621371
+
+                    hourly_item = {
+                        "Time": time_label,
+                        "svg": svg_name,
+                        "description": desc,
+                        "Temp": float(temperature[i]),
+                        "Feels": float(apparent_temperature[i]),
+                        "Humidity": float(relative_humidity[i]),
+                        "Cloud cover": float(cloud_cover_arr[i]),
+                        "Rainfall": float(rain_total),
+                        "Snowfall": float(snowfall_arr[i]),
+                        "Precip.": float(precip_prob_arr[i]),
+                        "Wind": float(wind_speed_arr[i]),
+                        "Gusts": float(wind_gusts_arr[i]),
+                        "Visibility": float(vis_miles),
+                        "UV": float(uv_index_arr[i]),
+                    }
+                    hourly_list.append(hourly_item)
+
+                result["hourly"] = hourly_list
+            except Exception:
+                # If hourly extraction fails, omit hourly key but continue
+                pass
 
             # Emit the result back to the GUI thread
             self.weather_fetched.emit(result)

@@ -128,7 +128,90 @@ class MainWindow(QWidget):
 
         layout.addLayout(grid)
         layout.addWidget(self.refresh_button)
+
+        # --- Begin 48-hour forecast area (Version-2) ---
+        from PyQt6.QtWidgets import QScrollArea, QFrame
+
+        forecast_header = QLabel("48-hr forecast:")
+        # Keep header styling minimal and consistent with current app style
+        header_font = forecast_header.font()
+        header_font.setPointSize(max(9, header_font.pointSize() + 1))
+        header_font.setBold(True)
+        forecast_header.setFont(header_font)
+
+        # Scrollable area to host the forecast grid (helps with limited vertical space)
+        forecast_scroll = QScrollArea()
+        forecast_scroll.setWidgetResizable(True)
+        forecast_container = QFrame()
+        forecast_layout = QVBoxLayout()
+        forecast_container.setLayout(forecast_layout)
+
+        # Forecast grid: 13 columns as specified in CURRENT_TASK.md
+        forecast_grid = QGridLayout()
+        forecast_grid.setVerticalSpacing(6)
+        forecast_grid.setHorizontalSpacing(8)
+
+        headers = [
+            "Time",
+            "Description",
+            "Temp",
+            "Feels",
+            "Humidity",
+            "Cloud cover",
+            "Rainfall",
+            "Snowfall",
+            "Precip.",
+            "Wind",
+            "Gusts",
+            "Visibility",
+            "UV",
+        ]
+        for col, text in enumerate(headers):
+            h = QLabel(text)
+            hf = h.font()
+            hf.setPointSize(max(8, hf.pointSize()))
+            hf.setBold(True)
+            h.setFont(hf)
+            h.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            forecast_grid.addWidget(h, 0, col)
+
+        # Create placeholders for 48 rows of forecast widgets; store references
+        self._forecast_rows = []
+        for row in range(1, 49):
+            cells = {}
+            for col, key in enumerate(headers):
+                if key == "Description":
+                    # Use a horizontal layout with icon QLabel and text QLabel
+                    cell_widget = QWidget()
+                    cell_layout = QHBoxLayout()
+                    cell_layout.setContentsMargins(0, 0, 0, 0)
+                    cell_layout.setSpacing(6)
+                    icon = QLabel()
+                    icon.setFixedSize(24, 24)
+                    icon.setScaledContents(False)
+                    text = QLabel("--")
+                    text.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                    cell_layout.addWidget(icon)
+                    cell_layout.addWidget(text)
+                    cell_widget.setLayout(cell_layout)
+                    forecast_grid.addWidget(cell_widget, row, col)
+                    cells["Description_icon"] = icon
+                    cells["Description_text"] = text
+                else:
+                    lbl = QLabel("--")
+                    lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    forecast_grid.addWidget(lbl, row, col)
+                    cells[key] = lbl
+            self._forecast_rows.append(cells)
+
+        forecast_layout.addLayout(forecast_grid)
+        forecast_scroll.setWidget(forecast_container)
+
+        layout.addWidget(forecast_header)
+        layout.addWidget(forecast_scroll)
         self.setLayout(layout)
+
+        # --- End 48-hour forecast area ---
 
         # Worker thread setup: create thread, worker, and connect signals/slots
         self._thread: Optional[QThread] = QThread()
@@ -153,6 +236,9 @@ class MainWindow(QWidget):
         self._timer.setInterval(10 * 60 * 1000)
         self._timer.timeout.connect(self.on_refresh_clicked)
         self._timer.start()
+
+        # Request an initial fetch to populate UI
+        self.request_fetch.emit()
 
     def closeEvent(self, event) -> None:
         """Handle window close and ensure the worker thread is stopped cleanly.
@@ -264,6 +350,60 @@ class MainWindow(QWidget):
                 self.visibility_label.setText(f"{float(data['visibility']):.1f} mi")
             if "uv_index" in data:
                 self.uv_label.setText(f"{int(round(data['uv_index']))}")
+
+            # Hourly forecast: update forecast rows if present
+            hourly = data.get("hourly")
+            if hourly and isinstance(hourly, list):
+                for i, item in enumerate(hourly[:48]):
+                    cells = self._forecast_rows[i]
+                    # Time
+                    cells["Time"].setText(item.get("Time", "--"))
+                    # Description: load svg into icon QLabel and set text
+                    svg_name = item.get("svg")
+                    if svg_name:
+                        try:
+                            renderer = QSvgRenderer(str(self._icons_dir / svg_name))
+                            size = 24
+                            px = QPixmap(size, size)
+                            px.fill(Qt.GlobalColor.transparent)
+                            p = QPainter(px)
+                            renderer.render(p, QRectF(0, 0, float(size), float(size)))
+                            p.end()
+                            cells["Description_icon"].setPixmap(px)
+                        except Exception:
+                            cells["Description_icon"].clear()
+                    else:
+                        cells["Description_icon"].clear()
+                    # Description text
+                    desc_text = item.get("description")
+                    if desc_text:
+                        cells["Description_text"].setText(f"({desc_text})")
+                    else:
+                        cells["Description_text"].setText("--")
+
+                    # Numeric fields formatted similar to current view
+                    def _fmt_num(key, fmt):
+                        val = item.get(key)
+                        if val is None:
+                            return "--"
+                        try:
+                            if isinstance(val, float):
+                                return fmt.format(val)
+                            return str(val)
+                        except Exception:
+                            return "--"
+
+                    cells["Temp"].setText(_fmt_num("Temp", "{:.0f}°F"))
+                    cells["Feels"].setText(_fmt_num("Feels", "{:.0f}°F"))
+                    cells["Humidity"].setText(_fmt_num("Humidity", "{:.0f}%"))
+                    cells["Cloud cover"].setText(_fmt_num("Cloud cover", "{:.0f}%"))
+                    cells["Rainfall"].setText(_fmt_num("Rainfall", "{:.2f} in"))
+                    cells["Snowfall"].setText(_fmt_num("Snowfall", "{:.2f} in"))
+                    cells["Precip."].setText(_fmt_num("Precip.", "{:.0f}%"))
+                    cells["Wind"].setText(_fmt_num("Wind", "{:.1f} mph"))
+                    cells["Gusts"].setText(_fmt_num("Gusts", "{:.1f} mph"))
+                    cells["Visibility"].setText(_fmt_num("Visibility", "{:.1f} mi"))
+                    cells["UV"].setText(_fmt_num("UV", "{:.2f}"))
 
         except Exception as exc:
             # Defensive: show error but don't crash the application

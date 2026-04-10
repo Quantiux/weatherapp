@@ -8,27 +8,27 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 1.3
+Version: 2.0
 
 Description:
-Version-1.3 updates the MainWindow UI with typography and alignment improvements: the SVG icon is rendered at ~48×48 and aligned with the description text; description font size and weight are increased (parentheses preserved); grid label fonts are slightly larger; spacing and margins were adjusted for visual clarity. No changes were made to worker threading, networking, data structures, or refresh behavior.
+Version-2 extends the MainWindow UI to display a 48-hour hourly forecast below the current weather fields. The current weather layout and styling were preserved exactly. New forecast area renders a 13-column grid (Time, Description, Temp, Feels, Humidity, Cloud cover, Rainfall, Snowfall, Precip., Wind, Gusts, Visibility, UV) with 48 rows and 24×24 SVG icons for hourly descriptions.
 
 ---
 
 ## Implemented Features
 
-- SVG icon rendered at ~48×48 and centered in its QLabel to avoid distortion.
-- Weather description text made visually prominent (larger, bold) and remains wrapped in parentheses.
-- Weather data grid uses slightly larger fonts for both names and values, with names left-aligned and values right-aligned.
-- Increased spacing between icon and description, and between grid rows; layout margins adjusted for clarity.
-- No behavioral changes to worker threads, signals, or networking.
+- Worker now emits an "hourly" key in the weather_fetched payload: a list of hourly dicts covering the next available hours (up to 48). Each hourly dict contains Time, svg (filename), description, Temp, Feels, Humidity, Cloud cover, Rainfall, Snowfall, Precip., Wind, Gusts, Visibility, UV.
+- MainWindow displays a new forecast area beneath the existing current-weather widgets. The forecast area includes a header "48-hr forecast:" and a scrollable grid showing 48 rows in a 13-column layout.
+- Forecast icons are rendered at 24×24 using QSvgRenderer → QPixmap and set on QLabel widgets. Icons appear before the description text (description kept in parentheses).
+- Initial fetch is requested when the window initializes.
 
 ---
 
 ## Files Modified
 
-- `src/weatherapp/gui/main_window.py` (typography, icon rendering size/alignment, spacing, and label fonts)
-- `agent_control/PLAN.md` (updated to reflect Version-1.3 work)
+- `src/weatherapp/gui/main_window.py` (added 48-hr forecast UI, rendering logic for 24×24 icons, and initial fetch)
+- `src/weatherapp/gui/worker.py` (added hourly payload generation to weather_fetched signal)
+- `agent_control/PLAN.md` (updated to Version-2 plan)
 - `agent_control/STATE.md` (this file)
 
 ---
@@ -36,18 +36,19 @@ Version-1.3 updates the MainWindow UI with typography and alignment improvements
 ## Known Limitations
 
 - PyQt6 may not be installed in the execution environment; import or runtime checks requiring PyQt6 could fail. This is an environment limitation rather than a code error.
-- Layout sizing may vary across desktop environments; the goal is improved readability and alignment, not pixel-perfect consistency.
-- No forecasts are included in this version.
+- Rendering and exact layout depend on platform font metrics; aim is functional alignment and readability rather than pixel-perfect appearance.
+- If the data-layer response structure changes, the Worker falls back to omitting the hourly key; MainWindow handles missing hourly gracefully.
 
 ---
 
 ## Next Planned Features
 
-1. Expand UI to show forecasts in future versions.
-2. Add unit tests for GUI update logic where practical (requires PyQt6 in test environment).
+1. Add unit tests for the Worker hourly payload formatting (requires network mocks).
+2. Optimize forecast area performance for very slow CPUs by virtualizing rows if needed.
 
 ---
 
 ## Notes for Future Development
 
-Ensure that worker.fetch continues to perform lazy imports. MainWindow.on_weather_fetched handles missing fields gracefully and will not crash the application if payload structure changes.
+- Keep lazy imports in the Worker to preserve GUI importability for testing.
+- MainWindow updates should continue to run on the GUI thread only.
