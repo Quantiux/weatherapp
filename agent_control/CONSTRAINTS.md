@@ -121,6 +121,12 @@ Keep Markdown files readable and focused.
 
 ---
 
+## Version Control
+
+Do not stage or commit changes.
+
+---
+
 ## When in Doubt
 
 If an action might violate these constraints:
