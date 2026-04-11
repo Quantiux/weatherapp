@@ -3,7 +3,7 @@
 Implement Version-4.1 of WeatherApp.
 
 Goal:
-Improve Version-4 GUI so the tab names are displayed in bigger fonts and the rows in the grid layout of 7-day forecast have reduced spacing between them.
+Improve Version-4 GUI so the tab names are displayed in bigger fonts.
 
 ## Requirements
 
@@ -27,8 +27,8 @@ Modify these modules only as needed to meet the goal, including docstrings and c
 
 ### MainWindow UI requirements
 
-- Tab names "NOW", "HOURLY" and "7-DAY" should be displayed prominently, in bigger/bolder font.
-- Row spacing in the grid layout of 7-day forecast should have reduced spacing, similar to hourly forecast.
+- Tab names "NOW", "HOURLY" and "7-DAY" should be displayed prominently, in bigger font.
+- No other UI elements should be modified.
 
 ## Implementation Constraints (IMPORTANT)
 
