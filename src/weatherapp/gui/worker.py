@@ -6,7 +6,6 @@ import time to keep the GUI modules importable for tests and static checks.
 """
 
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
-from typing import Any
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 

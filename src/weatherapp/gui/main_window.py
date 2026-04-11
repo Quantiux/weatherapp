@@ -20,15 +20,12 @@ from PyQt6.QtWidgets import (
     QTabWidget,
 )
 from PyQt6.QtCore import QTimer, QThread, pyqtSignal, Qt, QRectF
-from PyQt6.QtGui import QPixmap, QPainter, QFont
+from PyQt6.QtGui import QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
 from typing import Optional
-from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
+from datetime import datetime
 
 from weatherapp.gui.worker import Worker
-from weatherapp.utils.weather_code_mapper import get_svg_for_code, get_desc_for_code
-
 
 class MainWindow(QWidget):
     """Main window for WeatherApp with display adjustments for Version-2.1.
@@ -54,17 +51,15 @@ class MainWindow(QWidget):
 
         # Basic widgets: icon, description, temperature, and a manual refresh button
         self.icon_label = QLabel()
-        # Render a smaller SVG icon (~48x48) for Version-2.1 and avoid
-        # stretching by disabling scaledContents and controlling rendering
-        # in _load_svg_pixmap.
-        self.icon_label.setFixedSize(48, 48)
+        # Render a large SVG icon (~128x128) for Version-4.1 current weather description
+        self.icon_label.setFixedSize(128, 128)
         self.icon_label.setScaledContents(False)
         self.weather_label = QLabel("--")
         # Make the description visually prominent compared to the
         # data-grid labels while preserving the parentheses per the
         # version requirement.
         desc_font = self.weather_label.font()
-        desc_font.setPointSize(max(11, desc_font.pointSize() + 4))
+        desc_font.setPointSize(max(11, desc_font.pointSize() + 8))
         desc_font.setBold(True)
         self.weather_label.setFont(desc_font)
 
@@ -379,7 +374,7 @@ class MainWindow(QWidget):
         """
         self.request_fetch.emit()
 
-    def _load_svg_pixmap(self, svg_filename: str, size: int = 48) -> Optional[QPixmap]:
+    def _load_svg_pixmap(self, svg_filename: str, size: int = 128) -> Optional[QPixmap]:
         """Load an SVG file from the icons directory and render it to a QPixmap.
 
         Returns a size x size QPixmap on success or None on failure. The SVG is
