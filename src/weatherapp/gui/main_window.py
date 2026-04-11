@@ -288,6 +288,19 @@ class MainWindow(QWidget):
         # recreating them.
         tabs = QTabWidget()
 
+        # Increase tab label font size to make the tab names more prominent
+        # per Version-4.1. Modify only the tab bar's font so other widgets remain
+        # unaffected and layout logic is unchanged.
+        try:
+            tab_font = tabs.tabBar().font()
+            tab_font.setPointSize(max(10, tab_font.pointSize() + 3))
+            # tab_font.setBold(True)
+            tabs.tabBar().setFont(tab_font)
+        except Exception:
+            # Defensive: if the tabBar is not yet available for some reason,
+            # ignore and continue — this preserves existing behavior.
+            pass
+
         # NOW tab: top row, grid, refresh button
         now_tab = QWidget()
         now_layout = QVBoxLayout()
