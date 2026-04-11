@@ -332,15 +332,13 @@ class MainWindow(QWidget):
             return "--"
         if u <= 2:
             return "Low"
-        if 3 <= u <= 5:
+        if u <= 6:
             return "Moderate"
-        if 6 <= u <= 7:
+        if u <= 8:
             return "High"
-        if 8 <= u <= 10:
+        if u <= 10:
             return "Very High"
-        if u >= 11:
-            return "Extreme"
-        return "--"
+        return "Extreme"
 
     def on_weather_fetched(self, data: dict) -> None:
         """Update UI widgets with data returned from the Worker.
