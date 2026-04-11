@@ -22,6 +22,8 @@ from PyQt6.QtCore import QTimer, QThread, pyqtSignal, Qt, QRectF
 from PyQt6.QtGui import QPixmap, QPainter, QFont
 from PyQt6.QtSvg import QSvgRenderer
 from typing import Optional
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from weatherapp.gui.worker import Worker
 from weatherapp.utils.weather_code_mapper import get_svg_for_code, get_desc_for_code
@@ -213,9 +215,90 @@ class MainWindow(QWidget):
 
         layout.addWidget(forecast_header)
         layout.addWidget(forecast_scroll)
-        self.setLayout(layout)
 
         # --- End 24-hour forecast area ---
+
+        # --- Begin 7-day forecast area (Version-3) ---
+        daily_header = QLabel("7-day forecast:")
+        dhf = daily_header.font()
+        dhf.setPointSize(max(9, dhf.pointSize() + 2))
+        dhf.setBold(True)
+        daily_header.setFont(dhf)
+
+        daily_scroll = QScrollArea()
+        daily_scroll.setWidgetResizable(True)
+        daily_container = QFrame()
+        daily_layout = QVBoxLayout()
+        daily_container.setLayout(daily_layout)
+
+        # Daily forecast grid: 15 columns with the specified headers
+        daily_grid = QGridLayout()
+        daily_grid.setVerticalSpacing(6)
+        daily_grid.setHorizontalSpacing(8)
+
+        daily_headers = [
+            "Date",
+            "Description",
+            "Temp",
+            "Feels",
+            "Humidity",
+            "Cloud cover",
+            "Rainfall",
+            "Snowfall",
+            "Precip.",
+            "Wind",
+            "Gusts",
+            "Visibility",
+            "UV",
+            "Sunrise",
+            "Sunset",
+        ]
+        for col, text in enumerate(daily_headers):
+            h = QLabel(text)
+            hf = h.font()
+            hf.setPointSize(max(8, hf.pointSize()))
+            hf.setBold(True)
+            h.setFont(hf)
+            h.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            daily_grid.addWidget(h, 0, col)
+
+        # Placeholders for 7 rows (tomorrow + 6)
+        self._daily_rows = []
+        for row in range(1, 8):
+            cells = {}
+            for col, key in enumerate(daily_headers):
+                if key == "Description":
+                    cell_widget = QWidget()
+                    cell_layout = QHBoxLayout()
+                    cell_layout.setContentsMargins(0, 0, 0, 0)
+                    cell_layout.setSpacing(0)
+                    icon = QLabel()
+                    icon.setFixedSize(24, 24)
+                    icon.setScaledContents(False)
+                    text = QLabel("--")
+                    text.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                    cell_layout.addWidget(icon)
+                    cell_layout.addWidget(text)
+                    cell_widget.setLayout(cell_layout)
+                    daily_grid.addWidget(cell_widget, row, col)
+                    cells["Description_icon"] = icon
+                    cells["Description_text"] = text
+                else:
+                    lbl = QLabel("--")
+                    lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    daily_grid.addWidget(lbl, row, col)
+                    cells[key] = lbl
+            self._daily_rows.append(cells)
+
+        daily_layout.addLayout(daily_grid)
+        daily_scroll.setWidget(daily_container)
+
+        layout.addWidget(daily_header)
+        layout.addWidget(daily_scroll)
+
+        # --- End 7-day forecast area ---
+
+        self.setLayout(layout)
 
         # Worker thread setup: create thread, worker, and connect signals/slots
         self._thread: Optional[QThread] = QThread()
@@ -266,10 +349,10 @@ class MainWindow(QWidget):
         """
         self.request_fetch.emit()
 
-    def _load_svg_pixmap(self, svg_filename: str) -> Optional[QPixmap]:
+    def _load_svg_pixmap(self, svg_filename: str, size: int = 48) -> Optional[QPixmap]:
         """Load an SVG file from the icons directory and render it to a QPixmap.
 
-        Returns a 48x48 QPixmap on success or None on failure. The SVG is
+        Returns a size x size QPixmap on success or None on failure. The SVG is
         rendered into a square target while preserving aspect ratio to avoid
         distortion.
         """
@@ -280,15 +363,12 @@ class MainWindow(QWidget):
             return None
         try:
             renderer = QSvgRenderer(str(icon_path))
-            size = 48
             pixmap = QPixmap(size, size)
             # Create a transparent pixmap and render the SVG into a centered
             # rectangle so aspect ratio is preserved and the icon is not
             # distorted.
             pixmap.fill(Qt.GlobalColor.transparent)
             painter = QPainter(pixmap)
-            # Target rect covers the full pixmap; QSvgRenderer preserves
-            # aspect ratio when rendering into a QRectF if the viewBox is set
             renderer.render(painter, QRectF(0, 0, float(size), float(size)))
             painter.end()
             return pixmap
@@ -321,10 +401,10 @@ class MainWindow(QWidget):
 
         Rules:
         - "Low" if UV Index is 2 or less
-        - "Moderate" if UV Index is 3 to 5
-        - "High" if UV Index is 6 to 7
-        - "Very High" if UV Index is 8 to 10
-        - "Extreme" if UV Index is 11 or more
+        - "Moderate" if UV Index is more than 2 and less than or equal to 6
+        - "High" if UV Index is more than 6 and less than or equal to 8
+        - "Very High" if UV Index is more than 8 and less than or equal to 10
+        - "Extreme" if UV Index is more than 10
         """
         try:
             u = float(uv_val)
@@ -339,6 +419,23 @@ class MainWindow(QWidget):
         if u <= 10:
             return "Very High"
         return "Extreme"
+
+    def _format_time_no_space(self, dt_obj: Optional[datetime]) -> str:
+        """Format a datetime to 12-hour time with AM/PM and no space (e.g. "7:01AM").
+
+        Accepts an aware or naive datetime. Returns "--" on failure.
+        """
+        if dt_obj is None:
+            return "--"
+        try:
+            # Try platform-friendly %-I first (no leading zero)
+            return dt_obj.strftime("%-I:%M%p")
+        except Exception:
+            # Fallback: use %I and strip leading zero
+            try:
+                return dt_obj.strftime("%I:%M%p").lstrip("0")
+            except Exception:
+                return "--"
 
     def on_weather_fetched(self, data: dict) -> None:
         """Update UI widgets with data returned from the Worker.
@@ -495,6 +592,96 @@ class MainWindow(QWidget):
                             cells["UV"].setText(self._uv_text(uv_val))
                         except Exception:
                             cells["UV"].setText("--")
+
+            # Daily forecast: update daily rows if present
+            daily = data.get("daily")
+            if daily and isinstance(daily, list):
+                for i, item in enumerate(daily[:7]):
+                    cells = self._daily_rows[i]
+                    # Date (worker provides formatted MM-DD(AbbrevWeekday))
+                    cells["Date"].setText(item.get("Date", "--"))
+
+                    # Description icon and text
+                    svg_name = item.get("svg")
+                    if svg_name:
+                        pix = self._load_svg_pixmap(svg_name, size=24)
+                        if pix:
+                            cells["Description_icon"].setPixmap(pix)
+                        else:
+                            cells["Description_icon"].clear()
+                    else:
+                        cells["Description_icon"].clear()
+                    desc_text = item.get("description")
+                    if desc_text:
+                        # Parenthetical description with no space
+                        cells["Description_text"].setText(f"({desc_text})")
+                    else:
+                        cells["Description_text"].setText("--")
+
+                    # Numeric fields
+                    def _fmt_daily(key, fmt):
+                        val = item.get(key)
+                        if val is None:
+                            return "--"
+                        try:
+                            if isinstance(val, float):
+                                return fmt.format(val)
+                            return str(val)
+                        except Exception:
+                            return "--"
+
+                    cells["Temp"].setText(_fmt_daily("Temp", "{:.0f}°F"))
+                    cells["Feels"].setText(_fmt_daily("Feels", "{:.0f}°F"))
+                    cells["Humidity"].setText(_fmt_daily("Humidity", "{:.0f}%"))
+                    cells["Cloud cover"].setText(_fmt_daily("Cloud cover", "{:.0f}%"))
+                    cells["Rainfall"].setText(_fmt_daily("Rainfall", "{:.2f} in"))
+                    cells["Snowfall"].setText(_fmt_daily("Snowfall", "{:.2f} in"))
+                    cells["Precip."].setText(_fmt_daily("Precip.", "{:.0f}%"))
+
+                    # Wind and Gusts
+                    wind_val = item.get("Wind")
+                    gust_val = item.get("Gusts")
+                    if wind_val is None:
+                        cells["Wind"].setText("--")
+                    else:
+                        try:
+                            cells["Wind"].setText(f"{int(round(float(wind_val)))} mph")
+                        except Exception:
+                            cells["Wind"].setText(_fmt_daily("Wind", "{:.1f} mph"))
+                    if gust_val is None:
+                        cells["Gusts"].setText("--")
+                    else:
+                        try:
+                            cells["Gusts"].setText(f"{int(round(float(gust_val)))} mph")
+                        except Exception:
+                            cells["Gusts"].setText(_fmt_daily("Gusts", "{:.1f} mph"))
+
+                    # Visibility and UV text
+                    vis_val = item.get("Visibility")
+                    if vis_val is None:
+                        cells["Visibility"].setText("--")
+                    else:
+                        try:
+                            cells["Visibility"].setText(self._visibility_text(vis_val))
+                        except Exception:
+                            cells["Visibility"].setText("--")
+
+                    uv_val = item.get("UV")
+                    if uv_val is None:
+                        cells["UV"].setText("--")
+                    else:
+                        try:
+                            cells["UV"].setText(self._uv_text(uv_val))
+                        except Exception:
+                            cells["UV"].setText("--")
+
+                    # Sunrise / Sunset: worker already provides formatted text (e.g. "7:01AM")
+                    # But we defensively check for presence and fallback to "--"
+                    sunrise_raw = item.get("Sunrise")
+                    sunset_raw = item.get("Sunset")
+
+                    cells["Sunrise"].setText(sunrise_raw if sunrise_raw else "--")
+                    cells["Sunset"].setText(sunset_raw if sunset_raw else "--")
 
         except Exception as exc:
             # Defensive: show error but don't crash the application

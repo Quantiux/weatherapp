@@ -1,99 +1,97 @@
-# Implementation Plan (Version-2)
+# Implementation Plan (Version-3)
 
-This file is maintained by the agent during the current task.
+This plan implements the CURRENT_TASK.md Version-3 requirements: extend the GUI to display current weather (unchanged), 24-hour hourly forecast (existing), and a new 7-day daily forecast block beginning tomorrow.
 
-The plan describes how the task in CURRENT_TASK.md (Version-2) will be completed.
-
-Keep it concise and actionable.
+Keep changes minimal and limited to files named in CURRENT_TASK.md.
 
 ---
 
 ## Task Summary
 
-Implement Version-2 of WeatherApp: extend the existing GUI so the MainWindow displays current weather (unchanged layout/styling) and a 48-hour hourly forecast table below the current fields. Changes are limited to the files named in CURRENT_TASK.md and must respect the project constraints.
+Implement Version-3 of WeatherApp: add a 7-day daily forecast block below the existing hourly forecast while preserving the current-weather layout and styling. Worker must emit daily forecast data (next 7 days starting tomorrow) including sunrise and sunset times.
 
 ---
 
 ## Files To Modify
 
-- `src/weatherapp/gui/main_window.py` (add UI for 48-hr hourly forecast table, SVG icon rendering in forecasts at 24×24, layout insertion beneath existing current-weather widgets)
-- `src/weatherapp/gui/worker.py` (include hourly forecast payload in emitted weather_fetched signal — structured next-48-hours list or DataFrame-like serializable structure)
-- `src/weatherapp/app.py` (no functional changes expected; only run-time entry may be used to smoke-test the window)
+- `src/weatherapp/gui/main_window.py` — add UI block for the 7-day forecast, 15-column grid, rendering SVG icons at 24×24, formatting date/weekday and sunrise/sunset per spec, defensive updates on missing fields.
+- `src/weatherapp/gui/worker.py` — extend the `weather_fetched` payload to include a `daily` key: list[dict] with 7 items (tomorrow → +6). Each dict must include fields in the exact display order.
+- `src/weatherapp/app.py` — no functional change expected; may be used to smoke-test the app.
 
-Do not modify other modules. Follow CONSTRAINTS.md: keep diffs minimal and avoid refactoring unrelated code.
+Do not modify other modules listed as protected in CONSTRAINTS.md.
 
 ---
 
-## Implementation Steps
+## Worker changes (src/weatherapp/gui/worker.py)
 
-1. Update this PLAN.md (done).
+- Extend the dict emitted by `weather_fetched` to include a "daily" key whose value is a list of 7 plain dicts (one per day), starting with tomorrow.
+- Each daily dict fields (string keys) and expected types (display order):
+  1. "Date": string (e.g. "04-11(Sat)") — date formatted MM-DD(WeekdayAbbrev) with NO space before the opening parenthesis.
+  2. "svg": string (svg filename, relative to src/weatherapp/icons)
+  3. "description": string (short human description)
+  4. "Temp": numeric
+  5. "Feels": numeric
+  6. "Humidity": numeric (percent)
+  7. "Cloud cover": numeric (percent)
+  8. "Rainfall": numeric (inches)
+  9. "Snowfall": numeric (inches)
+ 10. "Precip.": numeric (percent)
+ 11. "Wind": numeric (mph)
+ 12. "Gusts": numeric (mph)
+ 13. "Visibility": numeric (miles)
+ 14. "UV": numeric
+ 15. "Sunrise": string (ISO or epoch accepted — MainWindow will format to 12-hour AM/PM without seconds)
+ 16. "Sunset": string (same as Sunrise)
 
-2. Worker changes (src/weatherapp/gui/worker.py):
-   - Extend the dict emitted by weather_fetched to include an "hourly" key whose value is a list of 48 items (one per hour). Each item will be a plain dictionary with these keys in this order: Time, svg, description, Temp, Feels, Humidity, Cloud cover, Rainfall, Snowfall, Precip, Wind, Gusts, Visibility, UV.
-   - Populate each hourly dict using the same indices and conversions already used by the format/show_weather.py module (temperature rounding, visibility meters→miles, precipitation aggregation rain+showers, etc.).
-   - Keep lazy imports and background-threading behavior. Do not change signal names or threading model. Emit the same weather_fetched signal (payload extended) and keep fetch_failed unchanged.
+- Keep existing threading model, signal names (`weather_fetched`, `fetch_failed`) and behavior. Do not modify protected data modules. Convert/format minimal values if worker already provides equivalents; otherwise pass raw values and let MainWindow handle presentation.
 
-3. MainWindow changes (src/weatherapp/gui/main_window.py):
-   - Add a QLabel/QWidget area below the current fields with the header "48-hr forecast:".
-   - Implement a scrollable (if necessary) grid or simple QGridLayout presenting 13 columns with headers in this order: Time, Description, Temp, Feels, Humidity, Cloud cover, Rainfall, Snowfall, Precip, Wind, Gusts, Visibility, UV.
-   - For the Description column, render the SVG icon at 24×24 to the left of the textual description (parenthetical description text remains acceptable). Use QSvgRenderer → QPixmap → QLabel.setPixmap to render icons; fallback to clearing the QLabel on error.
-   - Display 48 rows (one per hour); if vertical space is constrained, allow the area to be scrollable (QScrollArea) while preserving the current-weather layout and styling unchanged.
-   - Ensure updates to forecast widgets only happen in the GUI/main thread (in on_weather_fetched) and are defensive against missing fields.
-   - Preserve current-weather widgets exactly (no changes to their layout or styling), except for adding the forecast block beneath them.
+---
 
-4. Testing & validation:
-   - Run an import check: PYTHONPATH=src python -c "import weatherapp" to ensure no import-time errors (PyQt6 availability considered).
-   - If PyQt6 is not present in the environment, document the limitation in `agent_control/STATE.md` and skip runtime GUI checks.
-   - If available, launch the app manually (python -m weatherapp.app) to visually verify the forecast table and icon rendering.
+## MainWindow changes (src/weatherapp/gui/main_window.py)
 
-5. Documentation & state updates:
-   - Update `agent_control/STATE.md` describing what was changed (files modified, limitations, how the hourly payload is structured).
-   - Run the self-checklist in `agent_control/CHECKLIST.md` and correct any issues.
+- Add a header label: "7-day forecast:" placed below the hourly forecast area (which must remain unchanged).
+- Create a 15-column grid layout with column headers in this exact order: Date, Description, Temp, Feels, Humidity, Cloud cover, Rainfall, Snowfall, Precip., Wind, Gusts, Visibility, UV, Sunrise, Sunset.
+- Render SVG icons at 24×24 pixels to the left of the parentheted description text. The description text must be parenthesized immediately after the icon filename with no space (e.g., "wi-cloudy.svg(overcast)"). Use QSvgRenderer → QPixmap → QLabel.setPixmap; on error, clear the icon QLabel and still show the text.
+- Dates: display as MM-DD(AbbrevWeekday) with no space before the parenthesis (e.g., "04-11(Sat)").
+- Sunrise/Sunset: display in 12-hour format with AM/PM, no seconds, and no space between time and AM/PM (e.g., "7:01AM", "8:10PM").
+- Layout: present 7 rows (one per day). Use a scroll area only if necessary to avoid disturbing existing layout; preserve responsiveness and avoid blocking the Qt main thread.
+- Ensure all UI updates happen on the Qt main thread (in the `on_weather_fetched` handler) and are defensive against missing or partial data.
+
+---
+
+## Testing & Validation
+
+- Import check: `PYTHONPATH=src python -c "import weatherapp"` to ensure no import-time errors.
+- If PyQt6 is missing, note this limitation in `agent_control/STATE.md` and skip runtime GUI checks.
+- If available, run `python -m weatherapp.app` to visually verify the new 7-day block, icon rendering, and formatting rules.
+- Verify the Refresh button triggers a fetch that updates both hourly and daily displays.
+- Confirm auto-refresh continues to run every 10 minutes using the existing mechanism.
 
 ---
 
 ## Data contract (worker → GUI)
 
-The `weather_fetched` signal will continue to emit a single dict. Add key:
+`weather_fetched` will emit a dict including the new key:
 
-- "hourly": list[dict]
-  - Each dict fields (string keys):
-    - "Time": string (e.g. "10:00 AM")
-    - "svg": string (svg filename, relative to src/weatherapp/icons)
-    - "description": string (short human description, e.g. "overcast")
-    - "Temp": numeric (raw value; MainWindow will format/display as desired)
-    - "Feels": numeric
-    - "Humidity": numeric (percent)
-    - "Cloud cover": numeric (percent)
-    - "Rainfall": numeric (inches)
-    - "Snowfall": numeric (inches)
-    - "Precip.": numeric (percent)
-    - "Wind": numeric (mph)
-    - "Gusts": numeric (mph)
-    - "Visibility": numeric (miles)
-    - "UV": numeric
+- "daily": list[dict] with 7 entries (tomorrow → +6 days). Each dict will contain keys listed above in the Worker changes section. The MainWindow will perform final formatting (dates, times, percent signs, units).
 
-Rationale: keep the payload simple and serializable; let MainWindow handle display formatting where reasonable.
+Rationale: keep payload simple and serializable; let MainWindow handle display specifics.
 
 ---
 
-## Risks and Unknowns
+## Risks and Notes
 
-- PyQt6 might not be available in the execution environment; runtime GUI verification may be impossible. Record this in STATE.md if encountered.
-- Exact font metrics differ across platforms; target is functional alignment and readability, not pixel-perfect layout.
-- Large changes to main_window.py must avoid touching existing current-weather layout; ensure tests/import-check pass before runtime testing.
-
----
-
-## Verification
-
-- Modules import successfully (PYTHONPATH=src).
-- Application launches (if environment supports PyQt6).
-- Current weather UI is unchanged visually and functionally.
-- 48-hour forecast appears below current fields with 13 columns and correct headers.
-- Forecast description icons render at ~24×24 and update on new data.
-- Refresh button and automatic 10-minute refresh continue to trigger data fetch and UI updates.
+- PyQt6 may not be available in the execution environment; runtime verification may be skipped and recorded in STATE.md.
+- Preserve current-weather widgets exactly; ensure minimal diffs and avoid touching protected modules.
+- If the worker already contains daily fields in data/get_weather_data.py, prefer exposing them without heavy conversion.
 
 ---
 
-Next step: implement worker payload changes and MainWindow forecast UI. Proceed when instructed or confirm to continue now.
+## Next steps
+
+1. Proceed to implement `src/weatherapp/gui/worker.py` changes to emit `daily` payload and include sunrise/sunset.
+2. Implement UI changes in `src/weatherapp/gui/main_window.py` to render the 7-day forecast block per spec.
+3. Run import checks and, if possible, launch the app for visual verification.
+4. Update `agent_control/STATE.md` with what was changed and any limitations.
+
+Proceed now? (yes/no)

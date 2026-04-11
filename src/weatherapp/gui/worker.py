@@ -126,7 +126,7 @@ class Worker(QObject):
                 # Fallback: pass the whole response if structured access fails
                 result = {"response": response}
 
-            # Build hourly payload (list of 48 dicts) when available
+            # Build hourly payload (list of 24 dicts) when available
             try:
                 hourly = response.Hourly()
                 # Variables indices correspond to get_weather_data params
@@ -229,6 +229,226 @@ class Worker(QObject):
                     result["hourly"] = hourly_list[:24]
             except Exception:
                 # If hourly extraction fails, omit hourly key but continue
+                pass
+
+            # Build daily payload (7 days starting with tomorrow) when available
+            try:
+                daily = response.Daily()
+                # Variables indices correspond to get_weather_data params for daily
+                # Many daily fields (sunrise/sunset) are strings; attempt ValuesAsNumpy
+                def _maybe_values(var):
+                    try:
+                        return var.ValuesAsNumpy()
+                    except Exception:
+                        try:
+                            return var.Values()
+                        except Exception:
+                            return None
+
+                weather_code_arr = _maybe_values(daily.Variables(0))
+                sunrise_arr = daily.Variables(1).ValuesInt64AsNumpy()
+                sunset_arr = daily.Variables(2).ValuesInt64AsNumpy()
+                rain_sum_arr = _maybe_values(daily.Variables(3))
+                showers_sum_arr = _maybe_values(daily.Variables(4))
+                snowfall_sum_arr = _maybe_values(daily.Variables(5))
+                uv_max_arr = _maybe_values(daily.Variables(6))
+                temp_mean_arr = _maybe_values(daily.Variables(7))
+                app_temp_mean_arr = _maybe_values(daily.Variables(8))
+                cloud_cover_arr = _maybe_values(daily.Variables(9))
+                rel_humidity_arr = _maybe_values(daily.Variables(10))
+                precip_prob_arr = _maybe_values(daily.Variables(11))
+                visibility_arr = _maybe_values(daily.Variables(12))
+                wind_mean_arr = _maybe_values(daily.Variables(13))
+                gusts_mean_arr = _maybe_values(daily.Variables(14))
+
+                # Determine number of days available
+                length = None
+                for arr in (temp_mean_arr, weather_code_arr, sunrise_arr):
+                    if arr is not None:
+                        try:
+                            length = len(arr)
+                            break
+                        except Exception:
+                            continue
+                if length is None:
+                    raise RuntimeError("Daily arrays not found")
+
+                daily_list = []
+
+                # Helper to parse ISO-ish datetime strings into aware datetimes
+                def _parse_iso(dt_str):
+                    if dt_str is None:
+                        return None
+                    if isinstance(dt_str, (int, float)):
+                        try:
+                            return datetime.fromtimestamp(int(dt_str), tz=timezone.utc).astimezone(ZoneInfo(TIMEZONE))
+                        except Exception:
+                            return None
+                    try:
+                        s = str(dt_str)
+                        # Support trailing Z
+                        if s.endswith("Z"):
+                            s = s[:-1] + "+00:00"
+                        return datetime.fromisoformat(s)
+                    except Exception:
+                        try:
+                            # Try parsing date part only
+                            return datetime.strptime(s.split("T")[0], "%Y-%m-%d")
+                        except Exception:
+                            return None
+
+                for i in range(length):
+                    # Skip index 0 (today) to start with tomorrow
+                    if i == 0:
+                        continue
+                    try:
+                        # Date: prefer sunrise date if available, otherwise construct from index
+                        sunrise_val = None
+                        try:
+                            sunrise_val = sunrise_arr[i]
+                        except Exception:
+                            pass
+                        dt = _parse_iso(sunrise_val) if sunrise_val is not None else None
+                        if dt is None:
+                            # Fallback to using today's date + i days
+                            dt = datetime.now(ZoneInfo(TIMEZONE)).date() + timedelta(days=i)
+                            # normalize to datetime
+                            dt = datetime(dt.year, dt.month, dt.day)
+
+                        # Format Date as MM-DD(AbbrevWeekday) with no space before parenthesis
+                        try:
+                            date_label = dt.strftime("%m-%d(%a)")
+                        except Exception:
+                            date_label = dt.strftime("%m-%d") + "(%a)"
+
+                        code = None
+                        try:
+                            code = int(weather_code_arr[i])
+                        except Exception:
+                            code = None
+
+                        svg_name = None
+                        desc = ""
+                        try:
+                            if code is not None:
+                                # Determine day/night for daily icons: use 'day'
+                                svg_name = get_svg_for_code(code, "day")
+                                desc = get_desc_for_code(code)
+                        except Exception:
+                            svg_name = None
+                            desc = ""
+
+                        rain_total = None
+                        try:
+                            rain_total = float(rain_sum_arr[i]) + float(showers_sum_arr[i])
+                        except Exception:
+                            rain_total = None
+                        snowfall_total = None
+                        try:
+                            snowfall_total = float(snowfall_sum_arr[i])
+                        except Exception:
+                            snowfall_total = None
+
+                        temp_val = None
+                        try:
+                            temp_val = float(temp_mean_arr[i])
+                        except Exception:
+                            temp_val = None
+                        feels_val = None
+                        try:
+                            feels_val = float(app_temp_mean_arr[i])
+                        except Exception:
+                            feels_val = None
+
+                        humid_val = None
+                        try:
+                            humid_val = float(rel_humidity_arr[i])
+                        except Exception:
+                            humid_val = None
+
+                        cloud_val = None
+                        try:
+                            cloud_val = float(cloud_cover_arr[i])
+                        except Exception:
+                            cloud_val = None
+
+                        precip_val = None
+                        try:
+                            precip_val = float(precip_prob_arr[i])
+                        except Exception:
+                            precip_val = None
+
+                        wind_val = None
+                        try:
+                            wind_val = int(round(float(wind_mean_arr[i])))
+                        except Exception:
+                            wind_val = None
+                        gust_val = None
+                        try:
+                            gust_val = int(round(float(gusts_mean_arr[i])))
+                        except Exception:
+                            gust_val = None
+
+                        vis_val = None
+                        try:
+                            vis_val = float(visibility_arr[i]) * 0.000621371
+                        except Exception:
+                            vis_val = None
+
+                        uv_val = None
+                        try:
+                            uv_val = float(uv_max_arr[i])
+                        except Exception:
+                            uv_val = None
+
+                        sunrise_str = None
+                        try:
+                            val = sunrise_arr[i]
+                            if val is not None:
+                                sunrise_dt = datetime.fromtimestamp(int(val), tz=timezone.utc).astimezone(tz)
+                                sunrise_str = sunrise_dt.strftime("%-I:%M%p")
+                        except Exception:
+                            sunrise_str = None
+
+                        sunset_str = None
+                        try:
+                            val = sunset_arr[i]
+                            if val is not None:
+                                sunset_dt = datetime.fromtimestamp(int(val), tz=timezone.utc).astimezone(tz)
+                                sunset_str = sunset_dt.strftime("%-I:%M%p")
+                        except Exception:
+                            sunset_str = None
+
+                        daily_item = {
+                            "Date": date_label,
+                            "svg": svg_name,
+                            "description": desc,
+                            "Temp": temp_val,
+                            "Feels": feels_val,
+                            "Humidity": humid_val,
+                            "Cloud cover": cloud_val,
+                            "Rainfall": rain_total,
+                            "Snowfall": snowfall_total,
+                            "Precip.": precip_val,
+                            "Wind": wind_val,
+                            "Gusts": gust_val,
+                            "Visibility": vis_val,
+                            "UV": uv_val,
+                            "Sunrise": sunrise_str,
+                            "Sunset": sunset_str,
+                        }
+                        daily_list.append(daily_item)
+                    except Exception:
+                        # Skip problematic day but continue
+                        continue
+                    # Stop after collecting 7 days (tomorrow + 6)
+                    if len(daily_list) >= 7:
+                        break
+
+                if daily_list:
+                    result["daily"] = daily_list
+            except Exception:
+                # If daily extraction fails, omit daily key but continue
                 pass
 
             # Emit the result back to the GUI thread
