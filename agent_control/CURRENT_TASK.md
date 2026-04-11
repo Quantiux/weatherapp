@@ -68,10 +68,10 @@ Time Description Temp Feels Humidity Cloud cover Rainfall Snowfall Precip. Wind 
 
 7-day forecast:
 Date Description Temp Feels Humidity Cloud cover Rainfall Snowfall Precip. Wind Gusts Visibility UV Sunrise Sunset
-04-10(Fri) wi-day-sprinkle.svg(moderate drizzle) 47°F 43°F 83% 96% 0.0in 0.0in 13% clear 5mph 10mph High 7:01AM 8:10PM
-04-11(Sat) wi-cloudy.svg(overcast) 45°F 40°F 70% 60% 0.0in 0.0in 0% Clear 5mph 9mph High 6:59AM 8:11PM
-04-12(Sun) wi-day-sprinkle.svg(heavy drizzle) 53°F 46°F 72% 97% 0.0in 0.0in 17% Clear 13mph 27mph High 6:58AM 8:12PM
-04-13(Mon) wi-day-showers.svg(slight rain showers) 65°F 61°F 82% 100% 0.0in 0.0in 29% Clear 16mph 31mph High 6:56AM 8:13PM
+04-11(Sat) wi-day-fog.svg(light fog) 45°F 40°F 65% 71% 0.0in 0.0in 1% 4mph 8mph Clear High 6:59AM 8:11PM
+04-12(Sun) wi-day-showers.svg(slight rain) 56°F 50°F 60% 99% 0.0in 0.0in 12% 11mph 25mph Clear High 6:58AM 8:12PM
+04-13(Mon) wi-day-sprinkle.svg(light drizzle) 64°F 61°F 80% 100% 0.0in 0.0in 32% 12mph 24mph Clear Moderate 6:56AM 8:13PM
+04-14(Tue) wi-day-showers.svg(slight rain showers) 69°F 67°F 83% 88% 0.0in 0.0in 34% 16mph 31mph Clear High 6:54AM 8:14PM
 
 Success criteria
 

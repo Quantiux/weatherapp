@@ -303,9 +303,9 @@ def parse_daily(response: Any) -> None:
                 "Rainfall": daily_rain_total_in,
                 "Snowfall": daily_snow_total_in,
                 "Precip.": daily_precipitation_probability_mean,
-                "Visibility": daily_visibility_mean,
                 "Wind": daily_wind_speed_10m_mean,
                 "Gusts": daily_wind_gusts_10m_mean,
+                "Visibility": daily_visibility_mean,
                 "UV": daily_uv_index_max,
                 "Sunrise": daily_sunrise_local,
                 "Sunset": daily_sunset_local,
@@ -321,9 +321,9 @@ def parse_daily(response: Any) -> None:
             "Rainfall": "Rainfall",
             "Snowfall": "Snowfall",
             "Precip.": "Precip.",
-            "Visibility": "Visibility",
             "Wind": "Wind",
             "Gusts": "Gusts",
+            "Visibility": "Visibility",
             "UV": "UV",
         }
         format_columns(daily_df, col_map)
