@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QPushButton,
     QMessageBox,
+    QTabWidget,
 )
 from PyQt6.QtCore import QTimer, QThread, pyqtSignal, Qt, QRectF
 from PyQt6.QtGui import QPixmap, QPainter, QFont
@@ -88,13 +89,13 @@ class MainWindow(QWidget):
         top_row.addWidget(self.icon_label)
         top_row.addWidget(self.weather_label)
 
-        # Layout: top row followed by a compact two-column grid of fields
-        layout = QVBoxLayout()
+        # Layout: we'll place existing UI sections into tabs (NOW, HOURLY, 7-DAY)
+        main_layout = QVBoxLayout()
         # Improve overall spacing and margins for clarity
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(10)
-        layout.addLayout(top_row)
+        main_layout.setContentsMargins(12, 12, 12, 12)
+        main_layout.setSpacing(10)
 
+        # Prepare the information grid used in the NOW tab
         grid = QGridLayout()
         # Increase spacing between rows/columns so entries are easier to read
         grid.setVerticalSpacing(8)
@@ -129,9 +130,6 @@ class MainWindow(QWidget):
 
             grid.addWidget(name_label, row, 0)
             grid.addWidget(widget, row, 1)
-
-        layout.addLayout(grid)
-        layout.addWidget(self.refresh_button)
 
         # --- Begin 24-hour forecast area (Version-2.2) ---
         from PyQt6.QtWidgets import QScrollArea, QFrame
@@ -213,9 +211,6 @@ class MainWindow(QWidget):
         forecast_layout.addLayout(forecast_grid)
         forecast_scroll.setWidget(forecast_container)
 
-        layout.addWidget(forecast_header)
-        layout.addWidget(forecast_scroll)
-
         # --- End 24-hour forecast area ---
 
         # --- Begin 7-day forecast area (Version-3) ---
@@ -293,12 +288,47 @@ class MainWindow(QWidget):
         daily_layout.addLayout(daily_grid)
         daily_scroll.setWidget(daily_container)
 
-        layout.addWidget(daily_header)
-        layout.addWidget(daily_scroll)
+        # Build the tab widget and place existing sections into tabs. Per the
+        # task requirements, we MOVE existing widgets into tabs rather than
+        # recreating them.
+        tabs = QTabWidget()
 
-        # --- End 7-day forecast area ---
+        # NOW tab: top row, grid, refresh button
+        now_tab = QWidget()
+        now_layout = QVBoxLayout()
+        now_layout.setContentsMargins(0, 0, 0, 0)
+        now_layout.setSpacing(8)
+        now_layout.addLayout(top_row)
+        now_layout.addLayout(grid)
+        now_layout.addWidget(self.refresh_button)
+        now_tab.setLayout(now_layout)
+        tabs.addTab(now_tab, "NOW")
 
-        self.setLayout(layout)
+        # HOURLY tab: 24-hour forecast area
+        hourly_tab = QWidget()
+        hourly_layout = QVBoxLayout()
+        hourly_layout.setContentsMargins(0, 0, 0, 0)
+        hourly_layout.setSpacing(8)
+        hourly_layout.addWidget(forecast_header)
+        hourly_layout.addWidget(forecast_scroll)
+        hourly_tab.setLayout(hourly_layout)
+        tabs.addTab(hourly_tab, "HOURLY")
+
+        # 7-DAY tab: daily forecast area
+        daily_tab = QWidget()
+        daily_tab_layout = QVBoxLayout()
+        daily_tab_layout.setContentsMargins(0, 0, 0, 0)
+        daily_tab_layout.setSpacing(8)
+        daily_tab_layout.addWidget(daily_header)
+        daily_tab_layout.addWidget(daily_scroll)
+        daily_tab.setLayout(daily_tab_layout)
+        tabs.addTab(daily_tab, "7-DAY")
+
+        # Default tab is NOW (index 0)
+        tabs.setCurrentIndex(0)
+
+        main_layout.addWidget(tabs)
+        self.setLayout(main_layout)
 
         # Worker thread setup: create thread, worker, and connect signals/slots
         self._thread: Optional[QThread] = QThread()
