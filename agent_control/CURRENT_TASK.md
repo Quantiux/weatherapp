@@ -29,9 +29,9 @@ Modify these modules only as needed to meet the goal, including docstrings and c
 
 #### NOW tab
 
-- Combine "Temperature" and "Feels like" fields in one row, without any space before and after "|". Example: "Temperature|Feels like: 49°F|42°F".
-- Combine "Wind" and "Gusts" fields in one row, without any space before and after "|". Example: "Wind|Gusts: 10mph|24mph".
-- Preserve existing grid layout and styling.
+- Combine "Temperature" and "Feels like" fields in one row. Example: "Temperature|Feels like: 49°F|42°F".
+- Combine "Wind" and "Gusts" fields in one row. Example: "Wind|Gusts: 10mph|24mph".
+- Preserve existing grid layout and styling for other fields.
 
 #### HOURLY tab
 
@@ -53,7 +53,7 @@ Cloud cover: 100%
 Rainfall: 0.0in
 Snowfall: 0.0in
 Precip.: 7%
-Wind|Gusts: 10mph|24mph
+Wind|Gusts: 10 mph|24 mph
 Visibility: Clear
 UV Index: Low
 
@@ -74,7 +74,6 @@ Date Description Tmax|Tmin Humid_max Cloud_max Rain_tot Snow_tot Precip_max Wind
 ## Success criteria
 
 - App launches without UI regressions
-- Tabs correctly display existing UI sections
 - No duplicated forecast rows or widgets
 - All data updates correctly in all tabs
 - Layout remains stable when resizing
