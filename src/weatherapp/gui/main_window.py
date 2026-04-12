@@ -65,6 +65,8 @@ class MainWindow(QWidget):
 
         self.temp_label = QLabel("--°F")
         self.feels_label = QLabel("--°F")
+        # Combined label for Temperature|Feels (Version-4.2)
+        self.temp_feels_label = QLabel("--°F|--°F")
         self.humidity_label = QLabel("--%")
         self.cloud_label = QLabel("--%")
         self.rain_label = QLabel("-- in")
@@ -72,6 +74,8 @@ class MainWindow(QWidget):
         self.precip_label = QLabel("--%")
         self.wind_label = QLabel("-- mph")
         self.gusts_label = QLabel("-- mph")
+        # Combined label for Wind|Gusts (Version-4.2)
+        self.wind_gusts_label = QLabel("-- mph|-- mph")
         self.visibility_label = QLabel("--")
         self.uv_label = QLabel("--")
         self.refresh_button = QPushButton("Refresh Now")
@@ -97,15 +101,13 @@ class MainWindow(QWidget):
         grid.setHorizontalSpacing(12)
         # Column 0: field name labels (static); Column 1: value labels (dynamic)
         field_names = [
-            ("Temperature:", self.temp_label),
-            ("Feels like:", self.feels_label),
+            ("Temperature | Feels like:", self.temp_feels_label),
             ("Humidity:", self.humidity_label),
             ("Cloud cover:", self.cloud_label),
             ("Rainfall:", self.rain_label),
             ("Snowfall:", self.snow_label),
             ("Precip:", self.precip_label),
-            ("Wind:", self.wind_label),
-            ("Gusts:", self.gusts_label),
+            ("Wind | Gusts:", self.wind_gusts_label),
             ("Visibility:", self.visibility_label),
             ("UV index:", self.uv_label),
         ]
@@ -114,6 +116,7 @@ class MainWindow(QWidget):
             # Slightly larger font for readability
             name_font = name_label.font()
             name_font.setPointSize(max(9, name_font.pointSize() + 1))
+            # name_font.setBold(True)
             name_label.setFont(name_font)
             name_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
@@ -143,7 +146,7 @@ class MainWindow(QWidget):
         forecast_layout = QVBoxLayout()
         forecast_container.setLayout(forecast_layout)
 
-        # Forecast grid: 13 columns as specified in CURRENT_TASK.md
+        # Forecast grid: 11 columns with combined Temp|Feels and Wind|Gusts as required
         forecast_grid = QGridLayout()
         forecast_grid.setVerticalSpacing(6)
         forecast_grid.setHorizontalSpacing(8)
@@ -151,15 +154,13 @@ class MainWindow(QWidget):
         headers = [
             "Time",
             "Description",
-            "Temp",
-            "Feels",
+            "Temp|Feels",
             "Humidity",
             "Cloud cover",
             "Rainfall",
             "Snowfall",
             "Precip.",
-            "Wind",
-            "Gusts",
+            "Wind|Gusts",
             "Visibility",
             "UV",
         ]
@@ -221,7 +222,7 @@ class MainWindow(QWidget):
         daily_layout = QVBoxLayout()
         daily_container.setLayout(daily_layout)
 
-        # Daily forecast grid: 15 columns with the specified headers
+        # Daily forecast grid: combined columns per Version-4.2 requirements
         daily_grid = QGridLayout()
         daily_grid.setVerticalSpacing(6)
         daily_grid.setHorizontalSpacing(8)
@@ -229,19 +230,16 @@ class MainWindow(QWidget):
         daily_headers = [
             "Date",
             "Description",
-            "Tmax",
-            "Tmin",
+            "Tmax|Tmin",
             "Humid_max",
             "Cloud_max",
             "Rain_tot",
             "Snow_tot",
             "Precip_max",
-            "Wind_max",
-            "Gusts_max",
+            "Wind_max|Gusts_max",
             "Vis_min",
             "UV_max",
-            "Sunrise",
-            "Sunset",
+            "Sunrise|Sunset",
         ]
         for col, text in enumerate(daily_headers):
             h = QLabel(text)
@@ -504,10 +502,16 @@ class MainWindow(QWidget):
                 self.weather_label.setText("--")
 
             # Temperature and apparent temperature
+            temp_text = "--°F"
+            feels_text = "--°F"
             if "temperature_2m" in data:
-                self.temp_label.setText(f"{int(round(data['temperature_2m']))}°F")
+                temp_text = f"{int(round(data['temperature_2m']))}°F"
+                self.temp_label.setText(temp_text)
             if "apparent_temperature" in data:
-                self.feels_label.setText(f"{int(round(data['apparent_temperature']))}°F")
+                feels_text = f"{int(round(data['apparent_temperature']))}°F"
+                self.feels_label.setText(feels_text)
+            # Update combined label
+            self.temp_feels_label.setText(f"{temp_text} | {feels_text}")
 
             # Humidity and cloud cover
             if "relative_humidity_2m" in data:
@@ -524,17 +528,24 @@ class MainWindow(QWidget):
                 self.precip_label.setText(f"{int(round(data['precipitation_probability']))}%")
 
             # Wind and Gusts
+            wind_text = "-- mph"
+            gusts_text = "-- mph"
             if "wind_speed" in data:
                 try:
-                    # Round to nearest integer per Version-2.2
-                    self.wind_label.setText(f"{int(round(float(data['wind_speed'])))} mph")
+                    wind_text = f"{int(round(float(data['wind_speed'])))} mph"
+                    self.wind_label.setText(wind_text)
                 except Exception:
-                    self.wind_label.setText(f"{float(data['wind_speed']):.1f} mph")
+                    wind_text = f"{float(data['wind_speed']):.1f} mph"
+                    self.wind_label.setText(wind_text)
             if "wind_gusts" in data:
                 try:
-                    self.gusts_label.setText(f"{int(round(float(data['wind_gusts'])))} mph")
+                    gusts_text = f"{int(round(float(data['wind_gusts'])))} mph"
+                    self.gusts_label.setText(gusts_text)
                 except Exception:
-                    self.gusts_label.setText(f"{float(data['wind_gusts']):.1f} mph")
+                    gusts_text = f"{float(data['wind_gusts']):.1f} mph"
+                    self.gusts_label.setText(gusts_text)
+            # Update combined wind|gusts label
+            self.wind_gusts_label.setText(f"{wind_text} | {gusts_text}")
 
             # Visibility and UV index — map to text categories per CURRENT_TASK.md
             if "visibility" in data:
@@ -586,30 +597,34 @@ class MainWindow(QWidget):
                         except Exception:
                             return "--"
 
-                    cells["Temp"].setText(_fmt_num("Temp", "{:.0f}°F"))
-                    cells["Feels"].setText(_fmt_num("Feels", "{:.0f}°F"))
+                    temp_val = _fmt_num("Temp", "{:.0f}°F")
+                    feels_val = _fmt_num("Feels", "{:.0f}°F")
+                    cells["Temp|Feels"].setText(f"{temp_val}|{feels_val}")
+
                     cells["Humidity"].setText(_fmt_num("Humidity", "{:.0f}%"))
                     cells["Cloud cover"].setText(_fmt_num("Cloud cover", "{:.0f}%"))
                     cells["Rainfall"].setText(_fmt_num("Rainfall", "{:.2f} in"))
                     cells["Snowfall"].setText(_fmt_num("Snowfall", "{:.2f} in"))
                     cells["Precip."].setText(_fmt_num("Precip.", "{:.0f}%"))
-                    # Wind and Gusts should be rounded to nearest integer per Version-2.2
+
+                    # Wind and Gusts combined
                     wind_val = item.get("Wind")
                     gust_val = item.get("Gusts")
                     if wind_val is None:
-                        cells["Wind"].setText("--")
+                        wind_text = "--"
                     else:
                         try:
-                            cells["Wind"].setText(f"{int(round(float(wind_val)))} mph")
+                            wind_text = f"{int(round(float(wind_val)))} mph"
                         except Exception:
-                            cells["Wind"].setText(_fmt_num("Wind", "{:.1f} mph"))
+                            wind_text = _fmt_num("Wind", "{:.1f} mph")
                     if gust_val is None:
-                        cells["Gusts"].setText("--")
+                        gust_text = "--"
                     else:
                         try:
-                            cells["Gusts"].setText(f"{int(round(float(gust_val)))} mph")
+                            gust_text = f"{int(round(float(gust_val)))} mph"
                         except Exception:
-                            cells["Gusts"].setText(_fmt_num("Gusts", "{:.1f} mph"))
+                            gust_text = _fmt_num("Gusts", "{:.1f} mph")
+                    cells["Wind|Gusts"].setText(f"{wind_text}|{gust_text}")
 
                     # Visibility -> textual category
                     vis_val = item.get("Visibility")
@@ -668,31 +683,34 @@ class MainWindow(QWidget):
                         except Exception:
                             return "--"
 
-                    cells["Tmax"].setText(_fmt_daily("Tmax", "{:.0f}°F"))
-                    cells["Tmin"].setText(_fmt_daily("Tmin", "{:.0f}°F"))
+                    tmax = _fmt_daily("Tmax", "{:.0f}°F")
+                    tmin = _fmt_daily("Tmin", "{:.0f}°F")
+                    cells["Tmax|Tmin"].setText(f"{tmax}|{tmin}")
+
                     cells["Humid_max"].setText(_fmt_daily("Humid_max", "{:.0f}%"))
                     cells["Cloud_max"].setText(_fmt_daily("Cloud_max", "{:.0f}%"))
                     cells["Rain_tot"].setText(_fmt_daily("Rain_tot", "{:.2f} in"))
                     cells["Snow_tot"].setText(_fmt_daily("Snow_tot", "{:.2f} in"))
                     cells["Precip_max"].setText(_fmt_daily("Precip_max", "{:.0f}%"))
 
-                    # Wind and Gusts
+                    # Wind and Gusts combined
                     wind_val = item.get("Wind_max")
                     gust_val = item.get("Gusts_max")
                     if wind_val is None:
-                        cells["Wind_max"].setText("--")
+                        wind_text = "--"
                     else:
                         try:
-                            cells["Wind_max"].setText(f"{int(round(float(wind_val)))} mph")
+                            wind_text = f"{int(round(float(wind_val)))} mph"
                         except Exception:
-                            cells["Wind_max"].setText(_fmt_daily("Wind_max", "{:.1f} mph"))
+                            wind_text = _fmt_daily("Wind_max", "{:.1f} mph")
                     if gust_val is None:
-                        cells["Gusts_max"].setText("--")
+                        gust_text = "--"
                     else:
                         try:
-                            cells["Gusts_max"].setText(f"{int(round(float(gust_val)))} mph")
+                            gust_text = f"{int(round(float(gust_val)))} mph"
                         except Exception:
-                            cells["Gusts_max"].setText(_fmt_daily("Gusts_max", "{:.1f} mph"))
+                            gust_text = _fmt_daily("Gusts_max", "{:.1f} mph")
+                    cells["Wind_max|Gusts_max"].setText(f"{wind_text}|{gust_text}")
 
                     # Visibility and UV text
                     vis_val = item.get("Vis_min")
@@ -715,11 +733,13 @@ class MainWindow(QWidget):
 
                     # Sunrise / Sunset: worker already provides formatted text (e.g. "7:01AM")
                     # But we defensively check for presence and fallback to "--"
-                    sunrise_raw = item.get("Sunrise")
-                    sunset_raw = item.get("Sunset")
-
-                    cells["Sunrise"].setText(sunrise_raw if sunrise_raw else "--")
-                    cells["Sunset"].setText(sunset_raw if sunset_raw else "--")
+                    sunrise_val = item.get("Sunrise")
+                    sunset_val = item.get("Sunset")
+                    if sunrise_val is None:
+                        sunrise_val = "--"
+                    if sunset_val is None:
+                        sunset_val = "--"
+                    cells["Sunrise|Sunset"].setText(f"{sunrise_val}|{sunset_val}")
 
         except Exception as exc:
             # Defensive: show error but don't crash the application
