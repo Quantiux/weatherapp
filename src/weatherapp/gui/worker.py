@@ -251,18 +251,18 @@ class Worker(QObject):
                 showers_sum_arr = _maybe_values(daily.Variables(4))
                 snowfall_sum_arr = _maybe_values(daily.Variables(5))
                 uv_max_arr = _maybe_values(daily.Variables(6))
-                temp_mean_arr = _maybe_values(daily.Variables(7))
-                app_temp_mean_arr = _maybe_values(daily.Variables(8))
+                temp_max_arr = _maybe_values(daily.Variables(7))
+                temp_min_arr = _maybe_values(daily.Variables(8))
                 cloud_cover_arr = _maybe_values(daily.Variables(9))
                 rel_humidity_arr = _maybe_values(daily.Variables(10))
                 precip_prob_arr = _maybe_values(daily.Variables(11))
                 visibility_arr = _maybe_values(daily.Variables(12))
-                wind_mean_arr = _maybe_values(daily.Variables(13))
-                gusts_mean_arr = _maybe_values(daily.Variables(14))
+                wind_max_arr = _maybe_values(daily.Variables(13))
+                gusts_max_arr = _maybe_values(daily.Variables(14))
 
                 # Determine number of days available
                 length = None
-                for arr in (temp_mean_arr, weather_code_arr, sunrise_arr):
+                for arr in (temp_max_arr, weather_code_arr, sunrise_arr):
                     if arr is not None:
                         try:
                             length = len(arr)
@@ -348,16 +348,16 @@ class Worker(QObject):
                         except Exception:
                             snowfall_total = None
 
-                        temp_val = None
+                        tmax_val = None
                         try:
-                            temp_val = float(temp_mean_arr[i])
+                            tmax_val = float(temp_max_arr[i])
                         except Exception:
-                            temp_val = None
-                        feels_val = None
+                            tmax_val = None
+                        tmin_val = None
                         try:
-                            feels_val = float(app_temp_mean_arr[i])
+                            tmin_val = float(temp_min_arr[i])
                         except Exception:
-                            feels_val = None
+                            tmin_val = None
 
                         humid_val = None
                         try:
@@ -379,12 +379,12 @@ class Worker(QObject):
 
                         wind_val = None
                         try:
-                            wind_val = int(round(float(wind_mean_arr[i])))
+                            wind_val = int(round(float(wind_max_arr[i])))
                         except Exception:
                             wind_val = None
                         gust_val = None
                         try:
-                            gust_val = int(round(float(gusts_mean_arr[i])))
+                            gust_val = int(round(float(gusts_max_arr[i])))
                         except Exception:
                             gust_val = None
 
@@ -422,8 +422,8 @@ class Worker(QObject):
                             "Date": date_label,
                             "svg": svg_name,
                             "description": desc,
-                            "Temp": temp_val,
-                            "Feels": feels_val,
+                            "T(max)": tmax_val,
+                            "T(min)": tmin_val,
                             "Humidity": humid_val,
                             "Cloud cover": cloud_val,
                             "Rainfall": rain_total,

@@ -229,8 +229,8 @@ class MainWindow(QWidget):
         daily_headers = [
             "Date",
             "Description",
-            "Temp",
-            "Feels",
+            "T(max)",
+            "T(min)",
             "Humidity",
             "Cloud cover",
             "Rainfall",
@@ -668,8 +668,8 @@ class MainWindow(QWidget):
                         except Exception:
                             return "--"
 
-                    cells["Temp"].setText(_fmt_daily("Temp", "{:.0f}°F"))
-                    cells["Feels"].setText(_fmt_daily("Feels", "{:.0f}°F"))
+                    cells["T(max)"].setText(_fmt_daily("T(max)", "{:.0f}°F"))
+                    cells["T(min)"].setText(_fmt_daily("T(min)", "{:.0f}°F"))
                     cells["Humidity"].setText(_fmt_daily("Humidity", "{:.0f}%"))
                     cells["Cloud cover"].setText(_fmt_daily("Cloud cover", "{:.0f}%"))
                     cells["Rainfall"].setText(_fmt_daily("Rainfall", "{:.2f} in"))

@@ -21,7 +21,7 @@ RETRIES = 5
 BACKOFF_FACTOR = 0.2
 URL = "https://api.open-meteo.com/v1/forecast"
 FORECAST_DAYS = 10  # Maximum 16 days allowed by API
-FORECAST_HOURS = 48
+FORECAST_HOURS = 25  # 24 hours from next hour (for a full 24-hour forecast)
 TIMEZONE = "America/New_York"  # Local timezone for displaying times
 
 # Query parameters for the Open-Meteo API request
@@ -34,14 +34,14 @@ params = {
         "showers_sum",
         "snowfall_sum",
         "uv_index_max",
-        "temperature_2m_mean",
-        "apparent_temperature_mean",
-        "cloud_cover_mean",
-        "relative_humidity_2m_mean",
-        "precipitation_probability_mean",
-        "visibility_mean",
-        "wind_speed_10m_mean",
-        "wind_gusts_10m_mean",
+        "temperature_2m_max",
+        "temperature_2m_min",
+        "cloud_cover_max",
+        "relative_humidity_2m_max",
+        "precipitation_probability_max",
+        "visibility_min",
+        "wind_speed_10m_max",
+        "wind_gusts_10m_max",
     ],
     "hourly": [
         "temperature_2m",

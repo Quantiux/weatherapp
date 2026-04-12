@@ -60,6 +60,8 @@ def format_columns(df: pd.DataFrame, col_map: Dict[str, str]) -> None:
         try:
             if var in {"Temp", "Feels"}:
                 return f"{int(round(float(val)))}°F"
+            if var in {"T(max)", "T(min)"}:
+                return f"{int(round(float(val)))}°F"
             if var in {"Rainfall", "Snowfall"}:
                 return f"{float(val):.1f}in"
             if var in {"Humidity", "Precip.", "Cloud cover"}:
@@ -251,21 +253,21 @@ def parse_daily(response: Any) -> None:
         daily_rain_total = daily_rain_sum + daily_showers_sum
         daily_snowfall_sum = daily.Variables(5).ValuesAsNumpy()
         daily_uv_index_max = daily.Variables(6).ValuesAsNumpy()
-        daily_temperature_2m_mean = daily.Variables(7).ValuesAsNumpy()
-        daily_apparent_temperature_2m_mean = daily.Variables(8).ValuesAsNumpy()
-        daily_cloud_cover_mean = daily.Variables(9).ValuesAsNumpy()
-        daily_relative_humidity_2m_mean = daily.Variables(10).ValuesAsNumpy()
-        daily_precipitation_probability_mean = daily.Variables(11).ValuesAsNumpy()
-        daily_visibility_mean = daily.Variables(12).ValuesAsNumpy()
-        daily_wind_speed_10m_mean = daily.Variables(13).ValuesAsNumpy()
-        daily_wind_gusts_10m_mean = daily.Variables(14).ValuesAsNumpy()
+        daily_temperature_2m_max = daily.Variables(7).ValuesAsNumpy()
+        daily_temperature_2m_min = daily.Variables(8).ValuesAsNumpy()
+        daily_cloud_cover_max = daily.Variables(9).ValuesAsNumpy()
+        daily_relative_humidity_2m_max = daily.Variables(10).ValuesAsNumpy()
+        daily_precipitation_probability_max = daily.Variables(11).ValuesAsNumpy()
+        daily_visibility_min = daily.Variables(12).ValuesAsNumpy()
+        daily_wind_speed_10m_max = daily.Variables(13).ValuesAsNumpy()
+        daily_wind_gusts_10m_max = daily.Variables(14).ValuesAsNumpy()
 
         # Convert precipitation units to inches:
         daily_rain_total_in = daily_rain_total / 25.4  # 1 inch = 25.4 mm
         daily_snow_total_in = daily_snowfall_sum / 2.54  # 1 inch = 2.54 cm
 
         # Scale visibility from meters to miles
-        daily_visibility_mean = daily_visibility_mean * VIS_MILES
+        daily_visibility_min = daily_visibility_min * VIS_MILES
 
         # Build date range for the daily data and format as "MM-DD (Ddd)"
         dates = pd.date_range(
@@ -296,16 +298,16 @@ def parse_daily(response: Any) -> None:
             {
                 "Date": dates,
                 "Description": weather_desc,
-                "Temp": daily_temperature_2m_mean,
-                "Feels": daily_apparent_temperature_2m_mean,
-                "Humidity": daily_relative_humidity_2m_mean,
-                "Cloud cover": daily_cloud_cover_mean,
+                "Temp(max)": daily_temperature_2m_max,
+                "Temp(min)": daily_temperature_2m_min,
+                "Humidity": daily_relative_humidity_2m_max,
+                "Cloud cover": daily_cloud_cover_max,
                 "Rainfall": daily_rain_total_in,
                 "Snowfall": daily_snow_total_in,
-                "Precip.": daily_precipitation_probability_mean,
-                "Wind": daily_wind_speed_10m_mean,
-                "Gusts": daily_wind_gusts_10m_mean,
-                "Visibility": daily_visibility_mean,
+                "Precip.": daily_precipitation_probability_max,
+                "Wind": daily_wind_speed_10m_max,
+                "Gusts": daily_wind_gusts_10m_max,
+                "Visibility": daily_visibility_min,
                 "UV": daily_uv_index_max,
                 "Sunrise": daily_sunrise_local,
                 "Sunset": daily_sunset_local,
@@ -314,8 +316,8 @@ def parse_daily(response: Any) -> None:
 
         # Format data for display
         col_map = {
-            "Temp": "Temp",
-            "Feels": "Feels",
+            "T(max)": "Temp(max)",
+            "T(min)": "Temp(min)",
             "Humidity": "Humidity",
             "Cloud cover": "Cloud cover",
             "Rainfall": "Rainfall",
