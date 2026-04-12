@@ -29,9 +29,9 @@ Modify these modules only as needed to meet the goal, including docstrings and c
 
 #### NOW tab
 
-- Combine "Temperature" and "Feels like" fields in one row. Example: "Temperature | Feels like: 49°F | 42°F".
-- Combine "Wind" and "Gusts" fields in one row. Example: "Wind | Gusts: 10mph | 24mph".
-- Preserve existing layout and styling for other fields.
+- Combine "Temperature" and "Feels like" fields in one row, without any space before and after "|". Example: "Temperature|Feels like: 49°F|42°F".
+- Combine "Wind" and "Gusts" fields in one row, without any space before and after "|". Example: "Wind|Gusts: 10mph|24mph".
+- Preserve existing grid layout and styling.
 
 #### HOURLY tab
 
@@ -47,13 +47,13 @@ Modify these modules only as needed to meet the goal, including docstrings and c
 ## Example layout:
 
 wi-cloudy.svg (overcast)
-Temperature | Feels like: 49°F | 42°F
+Temperature|Feels like: 49°F|42°F
 Humidity: 62%
 Cloud cover: 100%
 Rainfall: 0.0in
 Snowfall: 0.0in
 Precip.: 7%
-Wind | Gusts: 10mph | 24mph
+Wind|Gusts: 10mph|24mph
 Visibility: Clear
 UV Index: Low
 
