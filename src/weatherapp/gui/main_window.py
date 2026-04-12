@@ -229,17 +229,17 @@ class MainWindow(QWidget):
         daily_headers = [
             "Date",
             "Description",
-            "T(max)",
-            "T(min)",
-            "Humidity",
-            "Cloud cover",
-            "Rainfall",
-            "Snowfall",
-            "Precip.",
-            "Wind",
-            "Gusts",
-            "Visibility",
-            "UV",
+            "Tmax",
+            "Tmin",
+            "Humid_max",
+            "Cloud_max",
+            "Rain_tot",
+            "Snow_tot",
+            "Precip_max",
+            "Wind_max",
+            "Gusts_max",
+            "Vis_min",
+            "UV_max",
             "Sunrise",
             "Sunset",
         ]
@@ -668,50 +668,50 @@ class MainWindow(QWidget):
                         except Exception:
                             return "--"
 
-                    cells["T(max)"].setText(_fmt_daily("T(max)", "{:.0f}°F"))
-                    cells["T(min)"].setText(_fmt_daily("T(min)", "{:.0f}°F"))
-                    cells["Humidity"].setText(_fmt_daily("Humidity", "{:.0f}%"))
-                    cells["Cloud cover"].setText(_fmt_daily("Cloud cover", "{:.0f}%"))
-                    cells["Rainfall"].setText(_fmt_daily("Rainfall", "{:.2f} in"))
-                    cells["Snowfall"].setText(_fmt_daily("Snowfall", "{:.2f} in"))
-                    cells["Precip."].setText(_fmt_daily("Precip.", "{:.0f}%"))
+                    cells["Tmax"].setText(_fmt_daily("Tmax", "{:.0f}°F"))
+                    cells["Tmin"].setText(_fmt_daily("Tmin", "{:.0f}°F"))
+                    cells["Humid_max"].setText(_fmt_daily("Humid_max", "{:.0f}%"))
+                    cells["Cloud_max"].setText(_fmt_daily("Cloud_max", "{:.0f}%"))
+                    cells["Rain_tot"].setText(_fmt_daily("Rain_tot", "{:.2f} in"))
+                    cells["Snow_tot"].setText(_fmt_daily("Snow_tot", "{:.2f} in"))
+                    cells["Precip_max"].setText(_fmt_daily("Precip_max", "{:.0f}%"))
 
                     # Wind and Gusts
-                    wind_val = item.get("Wind")
-                    gust_val = item.get("Gusts")
+                    wind_val = item.get("Wind_max")
+                    gust_val = item.get("Gusts_max")
                     if wind_val is None:
-                        cells["Wind"].setText("--")
+                        cells["Wind_max"].setText("--")
                     else:
                         try:
-                            cells["Wind"].setText(f"{int(round(float(wind_val)))} mph")
+                            cells["Wind_max"].setText(f"{int(round(float(wind_val)))} mph")
                         except Exception:
-                            cells["Wind"].setText(_fmt_daily("Wind", "{:.1f} mph"))
+                            cells["Wind_max"].setText(_fmt_daily("Wind_max", "{:.1f} mph"))
                     if gust_val is None:
-                        cells["Gusts"].setText("--")
+                        cells["Gusts_max"].setText("--")
                     else:
                         try:
-                            cells["Gusts"].setText(f"{int(round(float(gust_val)))} mph")
+                            cells["Gusts_max"].setText(f"{int(round(float(gust_val)))} mph")
                         except Exception:
-                            cells["Gusts"].setText(_fmt_daily("Gusts", "{:.1f} mph"))
+                            cells["Gusts_max"].setText(_fmt_daily("Gusts_max", "{:.1f} mph"))
 
                     # Visibility and UV text
-                    vis_val = item.get("Visibility")
+                    vis_val = item.get("Vis_min")
                     if vis_val is None:
-                        cells["Visibility"].setText("--")
+                        cells["Vis_min"].setText("--")
                     else:
                         try:
-                            cells["Visibility"].setText(self._visibility_text(vis_val))
+                            cells["Vis_min"].setText(self._visibility_text(vis_val))
                         except Exception:
-                            cells["Visibility"].setText("--")
+                            cells["Vis_min"].setText("--")
 
-                    uv_val = item.get("UV")
+                    uv_val = item.get("UV_max")
                     if uv_val is None:
-                        cells["UV"].setText("--")
+                        cells["UV_max"].setText("--")
                     else:
                         try:
-                            cells["UV"].setText(self._uv_text(uv_val))
+                            cells["UV_max"].setText(self._uv_text(uv_val))
                         except Exception:
-                            cells["UV"].setText("--")
+                            cells["UV_max"].setText("--")
 
                     # Sunrise / Sunset: worker already provides formatted text (e.g. "7:01AM")
                     # But we defensively check for presence and fallback to "--"

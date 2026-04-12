@@ -21,8 +21,7 @@ RETRIES = 5
 BACKOFF_FACTOR = 0.2
 URL = "https://api.open-meteo.com/v1/forecast"
 FORECAST_DAYS = 10  # Maximum 16 days allowed by API
-FORECAST_HOURS = 25  # 24 hours from next hour (for a full 24-hour forecast)
-TIMEZONE = "America/New_York"  # Local timezone for displaying times
+FORECAST_HOURS = 30  # 29 hrs from next hour (to ensure at least 24hr forecast is available)
 
 # Query parameters for the Open-Meteo API request
 params = {
@@ -75,7 +74,7 @@ params = {
         "visibility",
         "uv_index",
     ],
-    "timezone": TIMEZONE,
+    "timezone": "auto",
     "wind_speed_unit": "mph",
     "temperature_unit": "fahrenheit",
     "precipitation_unit": "inch",

@@ -15,7 +15,7 @@ from weatherapp.data.get_weather_data import fetch_weather
 from weatherapp.utils.weather_code_mapper import get_desc_for_code, get_svg_for_code
 
 # Set constants
-TIMEZONE = "America/New_York"  # Local timezone for displaying times
+# TIMEZONE = "America/New_York"  # Local timezone for displaying times
 VIS_MILES = 0.000621371  # meters to miles conversion factor (for visibility parameter)
 
 # Configure logger
@@ -171,12 +171,13 @@ def parse_hourly(response: Any) -> None:
         rain_total = rain + showers
 
         # Build time range for the hourly data and format as "H:MM AM/PM"
+        timezone = response.Timezone().decode('utf-8')
         hours = pd.date_range(
             start=pd.to_datetime(hourly.Time(), unit="s", utc=True).tz_convert(
-                TIMEZONE
+                timezone
             ),
             end=pd.to_datetime(hourly.TimeEnd(), unit="s", utc=True).tz_convert(
-                TIMEZONE
+                timezone
             ),
             freq=pd.Timedelta(seconds=hourly.Interval()),
             inclusive="left",
@@ -279,14 +280,15 @@ def parse_daily(response: Any) -> None:
         dates = dates.strftime("%m-%d (%a)")
 
         # Format sunrise/sunset (epoch seconds) as local standard time, e.g. "7:15 AM"
+        timezone = response.Timezone().decode('utf-8')
         daily_sunrise_local = (
             pd.to_datetime(daily_sunrise, unit="s", utc=True)
-            .tz_convert(TIMEZONE)
+            .tz_convert(timezone)
             .strftime("%-I:%M %p")
         )
         daily_sunset_local = (
             pd.to_datetime(daily_sunset, unit="s", utc=True)
-            .tz_convert(TIMEZONE)
+            .tz_convert(timezone)
             .strftime("%-I:%M %p")
         )
 

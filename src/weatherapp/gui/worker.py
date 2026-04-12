@@ -12,7 +12,6 @@ from zoneinfo import ZoneInfo
 # Import weather fetcher lazily inside fetch() to avoid heavy imports at module import time
 # (keeps GUI importable for testing and static analysis).
 
-
 class Worker(QObject):
     """Background worker that runs in a QThread and fetches weather data.
 
@@ -48,15 +47,19 @@ class Worker(QObject):
         """
         try:
             # Import the data-layer fetcher here to avoid heavy imports at module import time
-            from weatherapp.data.get_weather_data import fetch_weather, TIMEZONE
+            from weatherapp.data.get_weather_data import fetch_weather
             # lightweight helpers for mapping codes
             from weatherapp.utils.weather_code_mapper import get_svg_for_code, get_desc_for_code
 
             response = fetch_weather(self.coords)
 
+            # Get local timezome from response
+            timezone_str = response.Timezone().decode("utf-8")
+
             result = {}
 
             try:
+                # Get current weather data
                 current = response.Current()
 
                 # Indices mirror show_weather.parse_current usage
@@ -150,7 +153,7 @@ class Worker(QObject):
                 # number of points
                 length = len(temperature)
 
-                tz = ZoneInfo(TIMEZONE)
+                tz = ZoneInfo(timezone_str)
 
                 hourly_list = []
                 for i in range(length):
@@ -280,7 +283,7 @@ class Worker(QObject):
                         return None
                     if isinstance(dt_str, (int, float)):
                         try:
-                            return datetime.fromtimestamp(int(dt_str), tz=timezone.utc).astimezone(ZoneInfo(TIMEZONE))
+                            return datetime.fromtimestamp(int(dt_str), tz=timezone.utc).astimezone(ZoneInfo(timezone_str))
                         except Exception:
                             return None
                     try:
@@ -310,7 +313,7 @@ class Worker(QObject):
                         dt = _parse_iso(sunrise_val) if sunrise_val is not None else None
                         if dt is None:
                             # Fallback to using today's date + i days
-                            dt = datetime.now(ZoneInfo(TIMEZONE)).date() + timedelta(days=i)
+                            dt = datetime.now(ZoneInfo(timezone_str)).date() + timedelta(days=i)
                             # normalize to datetime
                             dt = datetime(dt.year, dt.month, dt.day)
 
@@ -422,17 +425,17 @@ class Worker(QObject):
                             "Date": date_label,
                             "svg": svg_name,
                             "description": desc,
-                            "T(max)": tmax_val,
-                            "T(min)": tmin_val,
-                            "Humidity": humid_val,
-                            "Cloud cover": cloud_val,
-                            "Rainfall": rain_total,
-                            "Snowfall": snowfall_total,
-                            "Precip.": precip_val,
-                            "Wind": wind_val,
-                            "Gusts": gust_val,
-                            "Visibility": vis_val,
-                            "UV": uv_val,
+                            "Tmax": tmax_val,
+                            "Tmin": tmin_val,
+                            "Humid_max": humid_val,
+                            "Cloud_max": cloud_val,
+                            "Rain_tot": rain_total,
+                            "Snow_tot": snowfall_total,
+                            "Precip_max": precip_val,
+                            "Wind_max": wind_val,
+                            "Gusts_max": gust_val,
+                            "Vis_min": vis_val,
+                            "UV_max": uv_val,
                             "Sunrise": sunrise_str,
                             "Sunset": sunset_str,
                         }
