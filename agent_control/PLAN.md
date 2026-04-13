@@ -1,161 +1,152 @@
-# Implementation Plan (Version-4.2)
+# Implementation Plan (Version-4.3)
 
 Goal:
 
-Improve Version-4.1 GUI to implement Version-4.2 layout requirements: combine related fields into single rows/columns across the NOW, HOURLY, and 7-DAY tabs while preserving existing widgets, data flow, responsiveness, and worker behavior.
+Replace the 7-day forecast grid with a horizontal card-based layout while preserving
+existing worker output, formatting helpers, icons, and all other tabs.
 
 Scope & constraints:
 
 - Modify only these files as required:
   - src/weatherapp/gui/main_window.py
-  - src/weatherapp/gui/worker.py (only if strictly required — CURRENT_TASK.md states worker should remain unchanged)
   - src/weatherapp/app.py (smoke-test only)
-- Do NOT modify protected modules (see CONSTRAINTS.md).
-- Keep diffs minimal and localized to widget/layout adjustments.
+- Do NOT modify: src/weatherapp/gui/worker.py (worker must remain unchanged)
+- Keep diffs minimal and localized to the 7-DAY UI block.
 - Do not add new dependencies.
+- Follow project constraints in CONSTRAINTS.md (no large refactors, no new top-level
+  directories, no blocking I/O on GUI thread).
 
-Architecture & approach:
+Approach:
 
-- Make only UI layout changes in main_window.py: combine display QLabel/QGrid placements so pairs of related fields appear in a single row/column as specified by CURRENT_TASK.md.
-- Preserve existing widget instances where possible (move/adjust them rather than recreate) to avoid duplicated widgets or broken signal/slot connections.
-- Ensure all GUI updates continue to occur on the main thread; do not change worker threading or network calls.
+- Implement a DayCardWidget (QFrame) used to display a single day's forecast.
+  - Internally use QGridLayout with two columns: column 0 labels (left-aligned),
+    column 1 values (right-aligned).
+  - Reuse existing formatting helpers used in the NOW tab (e.g. _visibility_text,
+    _uv_text, icon rendering helpers, time formatting helpers).
+  - Fixed card width ~240 px and subtle border to separate cards visually.
+- Replace the existing daily_grid/table with a QScrollArea that contains a
+  QWidget with a QHBoxLayout and the seven DayCardWidget instances. The scroll
+  area should show horizontal scrolling when window width is small.
+- Update on_weather_fetched (or equivalent UI update slot) to iterate the
+  worker-emitted data['daily'] list and populate each DayCardWidget.
+  - Populate up to 7 cards; if fewer items appear, hide unused cards.
+  - Preserve icon rendering logic (QSvgRenderer -> QPixmap -> QPainter) and
+    description formatting (no space before parenthesis).
+- Keep current-weather and hourly tabs unchanged.
 
 Files to modify (exact):
 
 - Modify: src/weatherapp/gui/main_window.py
-  - Tasks will target the UI construction sections for NOW tab, HOURLY tab, and 7-DAY tab.
-- Possibly modify: src/weatherapp/gui/worker.py
-  - Only if necessary to preserve widget reuse; aim for no changes.
-- Use src/weatherapp/app.py to run a local smoke launch.
+  - Add DayCardWidget class near other widget definitions (keep import-time
+    overhead minimal — use PyQt imports at module level as project does).
+  - Replace daily_grid creation code with scroll area + container + HBox
+    creation. Pre-create 7 DayCardWidget instances and add them to the HBox.
+  - Update the UI update slot to populate DayCardWidget fields using the
+    emitted daily dicts.
+- Possibly modify: src/weatherapp/app.py for a smoke-launch helper (no
+  behavior changes). Prefer no edits if not required.
 
-Task breakdown (bite-sized, TDD-style where applicable):
+Task breakdown:
 
 Task 1: Inspect current UI code
 
-Objective: Find the exact locations in main_window.py that create/lay out the NOW, HOURLY, and 7-DAY UI sections.
-
-Files:
-- Read: src/weatherapp/gui/main_window.py
+Objective: Find exact locations in main_window.py that build the 7-DAY UI and
+identify variable/widget names used for daily widgets and update slot(s).
 
 Steps:
-1. Open the file and locate the sections that build the NOW grid (labels for Temperature, Feels like, Wind, Gusts, etc.).
-2. Locate the 24-hour forecast table/scroll area code for HOURLY.
-3. Locate the 7-day forecast container for 7-DAY.
-4. Note exact variable/widget names used for each label (e.g. self.temp_label, self.feels_label). If names are not obvious, record the grid positions.
+1. Open src/weatherapp/gui/main_window.py and locate the 7-DAY tab construction
+   and the on_weather_fetched slot (or similarly named handler).
+2. Record widget variable names for daily grid and any helper methods.
+3. Note where icon rendering and formatting helpers are defined or imported.
 
-Commands:
-- python - <<EOF
-from pathlib import Path
-print(Path('src/weatherapp/gui/main_window.py').read_text()[:1000])
-EOF
-(used locally; agent will read files programmatically as needed)
+Verification: import check:
+PYTHONPATH=src python -c "import weatherapp"
 
-Task 2: Update NOW tab layout
+Task 2: Implement DayCardWidget
 
-Objective: Combine "Temperature" and "Feels like" into one row/label group, and "Wind" and "Gusts" into one row.
-
-Files:
-- Modify: src/weatherapp/gui/main_window.py
+Objective: Add a small reusable widget class representing a day's card.
 
 Steps:
-1. Identify the QLabel/QGrid placement for Temperature and Feels like.
-2. Replace two separate grid cells with a single combined QLabel or container that renders "Temperature|Feels like: {temp} | {feels}". Prefer updating existing QLabel text assignment rather than creating new widgets.
-3. Repeat for Wind and Gusts.
-4. Preserve any style, alignment, icons, spacing used previously.
-5. Run import check.
+1. Create DayCardWidget(QFrame) with a QGridLayout (labels left, values right).
+2. Create QLabel placeholders for required fields: Date, icon+desc, Tmax, Tmin,
+   Humid_max, Cloud_max, Rain_tot, Snow_tot, Precip_max, Wind_max, Gusts_max,
+   Vis_min, UV_max, Sunrise, Sunset. Use the same keys the worker emits.
+3. Add a method populate_from_dict(d) that safely formats and sets label texts
+   and sets the icon pixmap using existing rendering helpers (defensive try/except).
+4. Set fixed width ~240 and apply QFrame.StyledPanel or stylesheet border.
 
-Small code example (copy/paste-ready — adapt variable names found in Task 1):
+Task 3: Replace daily grid with scrollable horizontal cards
 
-# Example: combine two labels into one
-# locate where values are set, then replace with:
-self.temp_feels_label = self.temp_feels_label if hasattr(self, 'temp_feels_label') else QLabel()
-self.temp_feels_label.setText(f"Temperature|Feels like: {temp_str}|{feels_str}")
-# place into grid at the original Temperature cell
-parent_grid.addWidget(self.temp_feels_label, row, col)
-
-Verification:
-- PYTHONPATH=src python -c "import weatherapp" (no import errors)
-- If environment supports PyQt6, run: PYTHONPATH=src python -m weatherapp.app and visually verify NOW tab matches example.
-
-Task 3: Update HOURLY tab layout
-
-Objective: Combine "Temp" and "Feels" into one column and "Wind" and "Gusts" into one column in the 24-hour forecast rows.
-
-Files:
-- Modify: src/weatherapp/gui/main_window.py
+Objective: Replace existing grid/table with QScrollArea -> container -> QHBoxLayout
+and insert 7 DayCardWidget instances.
 
 Steps:
-1. Find the code that constructs each hourly row in the scroll area (factory function or loop creating per-hour widgets).
-2. Modify the per-row widget creation so the Temp and Feels values are rendered in a single widget or column (e.g. "47°F|39°F").
-3. Similarly combine Wind and Gusts into a single text cell.
-4. Ensure widths/alignments don't overflow; prefer setting elide modes or fixed widths consistent with existing styling.
+1. Remove or comment out the daily_grid construction; add a QScrollArea in its
+   place with horizontal scroll policies and no vertical scroll.
+2. Create container QWidget/QFrame with QHBoxLayout; add 7 DayCardWidget widgets.
+3. Add the container to the scroll area and ensure size policies keep card width
+   fixed while allowing horizontal scrolling.
+4. Ensure spacing and margins match the NOW tab visual rhythm.
 
-Verification:
-- Import check
-- Visual verification of the HOURLY tab: no duplicated rows, combined columns show values in the requested format.
+Task 4: Populate cards from worker data
 
-Task 4: Update 7-DAY tab layout
-
-Objective: Combine Tmax|Tmin, Wind_max|Gusts_max, Sunrise|Sunset columns for each daily row.
-
-Files:
-- Modify: src/weatherapp/gui/main_window.py
+Objective: Update the UI handler that receives worker data to populate DayCardWidget
+instances using data['daily'].
 
 Steps:
-1. Locate the daily-forecast row builder.
-2. Replace separate Tmax/Tmin cells with a single combined cell rendering "Tmax|Tmin {tmax}|{tmin}" or the exact example format.
-3. Combine Wind_max and Gusts_max in the same way, and Sunrise/Sunset.
-4. Preserve icons and description cells.
+1. After existing hourly update logic, check for data.get('daily').
+2. Iterate daily items up to 7 and call card.populate_from_dict(daily[i]).
+3. Hide any unused cards when fewer than 7 items are present.
+4. Ensure updates occur on the GUI thread (slot is already called on GUI thread).
 
-Verification:
-- Import check
-- Visual verification of the 7-DAY tab
+Task 5: Validation & safety checks
 
-Task 5: Sanity checks and GUI safety
-
-Objective: Ensure no new blocking calls or thread-safety issues introduced.
+Objective: Ensure app imports and runs without regressions; no blocking I/O.
 
 Steps:
-1. Verify no network calls were moved into the GUI code.
-2. Confirm all updates to QLabel text occur on the main thread (where they were before).
-3. Run the existing app entrypoint if PyQt6 is available.
-
-Commands:
-- PYTHONPATH=src python -c "import weatherapp"
-- PYTHONPATH=src python -m weatherapp.app
+1. Run: PYTHONPATH=src python -c "import weatherapp" — fix any import errors.
+2. If PyQt6 is available, run: PYTHONPATH=src python -m weatherapp.app and
+   manually confirm:
+   - 7-day tab shows 7 bordered cards arranged horizontally in a scroll area.
+   - Each card shows icon, description, and fields formatted like NOW tab.
+   - Horizontal scrolling works when window width is small.
+3. Verify no duplicated widgets or rows.
+4. Spot-check resizing behavior.
 
 Task 6: Update agent_control/STATE.md
 
-Objective: Document what was changed, which files were modified, and any limitations (e.g., environment lacking PyQt6).
-
-Files:
-- Modify: agent_control/STATE.md
+Objective: Record what was implemented, which files changed, and any
+limitations (e.g., PyQt6 not present in CI).
 
 Steps:
-1. Add Version: 4.2 and a brief description of the layout changes.
+1. Add Version: 4.3 with a concise description of the card-based 7-day UI.
 2. List modified files and any known limitations.
 
-Task 7: Self-review using CHECKLIST.md
+Task 7: Self-review using agent_control/CHECKLIST.md
 
-Objective: Run through the self-review checklist and fix any issues found.
+Objective: Run the checklist and fix issues.
 
 Steps:
-1. Verify only required files were touched.
-2. Verify PEP8 (line length <= 100). Make small, localized formatting fixes if needed.
-3. Ensure no blocking I/O on the GUI thread.
+1. Verify only required files were modified.
+2. Ensure PEP8 (line length <= 100) for new code.
+3. Confirm no blocking calls on the GUI thread.
 
 Acceptance criteria (Success):
 
-- App imports successfully (PYTHONPATH=src python -c "import weatherapp").
-- When runnable with PyQt6, the NOW, HOURLY, and 7-DAY tabs show combined fields as specified and update correctly when data refreshes.
-- No duplicated widgets or forecast rows.
-- Layout remains stable when resizing.
+- App imports successfully.
+- 7-day forecast displays as seven card widgets in a horizontal scroll area.
+- Each card is a bordered box with internal grid layout for labels/values.
+- Worker-emitted daily data populates cards correctly; icons render as before.
+- Horizontal scrolling works and layout is stable when resizing.
 
-Risks & mitigation:
+Risks & mitigations:
 
-- Risk: Widget variable names differ from plan assumptions and moving widgets could break signal/slot connections. Mitigation: prefer updating text on existing widgets rather than deleting/creating; if rename is unavoidable, reattach signals after changes.
-- Risk: Visual regressions on different platforms. Mitigation: keep changes minimal and only change textual composition and grid placements.
+- Risk: Widget names differ and moving widgets could break signal/slot links.
+  Mitigation: Prefer creating new DayCardWidget instances and populating them
+  rather than moving existing widgets. Do not alter worker signals.
+- Risk: Visual regressions. Mitigation: Keep changes confined to 7-DAY block and
+  match spacing/alignment from NOW tab.
 
-Estimated effort: 1–2 hours of focused edits and local verification (less if variable names are obvious and widgets are reused).
+Estimated effort: 1–2 hours local edits and verification.
 
-Next action: implement Task 1 (inspect src/weatherapp/gui/main_window.py) and record the exact widget names/lines to be modified. Proceed? (yes/no)
+Next action: implement Task 1 (inspect src/weatherapp/gui/main_window.py) now.

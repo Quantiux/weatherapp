@@ -209,77 +209,189 @@ class MainWindow(QWidget):
 
         # --- End 24-hour forecast area ---
 
-        # --- Begin 7-day forecast area (Version-3) ---
+        # --- Begin 7-day forecast area (Version-4.3: card-based layout) ---
         daily_header = QLabel("7-day forecast:")
         dhf = daily_header.font()
         dhf.setPointSize(max(9, dhf.pointSize() + 2))
         dhf.setBold(True)
         daily_header.setFont(dhf)
 
+        # Create a horizontal scroll area that will contain DayCard widgets arranged in a row.
         daily_scroll = QScrollArea()
         daily_scroll.setWidgetResizable(True)
+        daily_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        daily_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
         daily_container = QFrame()
-        daily_layout = QVBoxLayout()
-        daily_container.setLayout(daily_layout)
+        # Use an HBoxLayout so cards are laid out horizontally
+        daily_hbox = QHBoxLayout()
+        daily_hbox.setContentsMargins(0, 0, 0, 0)
+        daily_hbox.setSpacing(10)
+        daily_container.setLayout(daily_hbox)
 
-        # Daily forecast grid: combined columns per Version-4.2 requirements
-        daily_grid = QGridLayout()
-        daily_grid.setVerticalSpacing(6)
-        daily_grid.setHorizontalSpacing(8)
+        # Local small Card widget class defined inside __init__ to keep changes localized.
+        class DayCardWidget(QFrame):
+            def __init__(self) -> None:
+                super().__init__()
+                self.setFrameShape(QFrame.Shape.StyledPanel)
+                self.setLineWidth(1)
+                self.setFixedWidth(240)
+                layout = QGridLayout()
+                layout.setVerticalSpacing(6)
+                layout.setHorizontalSpacing(8)
+                layout.setContentsMargins(8, 8, 8, 8)
 
-        daily_headers = [
-            "Date",
-            "Description",
-            "Tmax|Tmin",
-            "Humid_max",
-            "Cloud_max",
-            "Rain_tot",
-            "Snow_tot",
-            "Precip_max",
-            "Wind_max|Gusts_max",
-            "Vis_min",
-            "UV_max",
-            "Sunrise|Sunset",
-        ]
-        for col, text in enumerate(daily_headers):
-            h = QLabel(text)
-            hf = h.font()
-            hf.setPointSize(max(8, hf.pointSize()))
-            hf.setBold(True)
-            h.setFont(hf)
-            h.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            daily_grid.addWidget(h, 0, col)
+                # Date row (spans two columns)
+                self.date_label = QLabel("--")
+                self.date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                layout.addWidget(self.date_label, 0, 0, 1, 2)
 
-        # Placeholders for 7 rows (tomorrow + 6)
-        self._daily_rows = []
-        for row in range(1, 8):
-            cells = {}
-            for col, key in enumerate(daily_headers):
-                if key == "Description":
-                    cell_widget = QWidget()
-                    cell_layout = QHBoxLayout()
-                    cell_layout.setContentsMargins(0, 0, 0, 0)
-                    cell_layout.setSpacing(0)
-                    icon = QLabel()
-                    icon.setFixedSize(24, 24)
-                    icon.setScaledContents(False)
-                    text = QLabel("--")
-                    text.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-                    cell_layout.addWidget(icon)
-                    cell_layout.addWidget(text)
-                    cell_widget.setLayout(cell_layout)
-                    daily_grid.addWidget(cell_widget, row, col)
-                    cells["Description_icon"] = icon
-                    cells["Description_text"] = text
+                # Icon + description (next row, spans two columns)
+                self.icon_label = QLabel()
+                self.icon_label.setFixedSize(24, 24)
+                self.icon_label.setScaledContents(False)
+                self.desc_label = QLabel("--")
+                self.desc_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                desc_widget = QWidget()
+                desc_layout = QHBoxLayout()
+                desc_layout.setContentsMargins(0, 0, 0, 0)
+                desc_layout.setSpacing(0)
+                desc_layout.addWidget(self.icon_label)
+                desc_layout.addWidget(self.desc_label)
+                desc_widget.setLayout(desc_layout)
+                layout.addWidget(desc_widget, 1, 0, 1, 2)
+
+                # Metrics: use two-column grid for label/value alignment (labels left, values right)
+                # Column 0: label name, Column 1: value
+                self.labels = {}
+                metric_names = [
+                    ("Tmax|Tmin", "--"),
+                    ("Humid_max", "--"),
+                    ("Cloud_max", "--"),
+                    ("Rain_tot", "--"),
+                    ("Snow_tot", "--"),
+                    ("Precip_max", "--"),
+                    ("Wind_max|Gusts_max", "--"),
+                    ("Vis_min", "--"),
+                    ("UV_max", "--"),
+                    ("Sunrise|Sunset", "--"),
+                ]
+                row = 2
+                for name, _ in metric_names:
+                    name_lbl = QLabel(name.replace("|", " | "))
+                    name_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                    val_lbl = QLabel("--")
+                    val_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                    layout.addWidget(name_lbl, row, 0)
+                    layout.addWidget(val_lbl, row, 1)
+                    self.labels[name] = val_lbl
+                    row += 1
+
+                self.setLayout(layout)
+
+            def populate_from_dict(self, item: dict, main: "MainWindow") -> None:
+                # Date
+                self.date_label.setText(item.get("Date", "--"))
+
+                # Icon
+                svg_name = item.get("svg")
+                if svg_name:
+                    try:
+                        pix = main._load_svg_pixmap(svg_name, size=24)
+                        if pix:
+                            self.icon_label.setPixmap(pix)
+                        else:
+                            self.icon_label.clear()
+                    except Exception:
+                        self.icon_label.clear()
                 else:
-                    lbl = QLabel("--")
-                    lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                    daily_grid.addWidget(lbl, row, col)
-                    cells[key] = lbl
-            self._daily_rows.append(cells)
+                    self.icon_label.clear()
 
-        daily_layout.addLayout(daily_grid)
+                # Description text (parenthetical, no leading space required here)
+                desc_text = item.get("description")
+                if desc_text:
+                    self.desc_label.setText(f"({desc_text})")
+                else:
+                    self.desc_label.setText("--")
+
+                def _fmt_daily(key, fmt):
+                    val = item.get(key)
+                    if val is None:
+                        return "--"
+                    try:
+                        if isinstance(val, float):
+                            return fmt.format(val)
+                        return str(val)
+                    except Exception:
+                        return "--"
+
+                # Tmax|Tmin
+                tmax = _fmt_daily("Tmax", "{:.0f}°F")
+                tmin = _fmt_daily("Tmin", "{:.0f}°F")
+                self.labels["Tmax|Tmin"].setText(f"{tmax}|{tmin}")
+
+                self.labels["Humid_max"].setText(_fmt_daily("Humid_max", "{:.0f}%"))
+                self.labels["Cloud_max"].setText(_fmt_daily("Cloud_max", "{:.0f}%"))
+                self.labels["Rain_tot"].setText(_fmt_daily("Rain_tot", "{:.2f} in"))
+                self.labels["Snow_tot"].setText(_fmt_daily("Snow_tot", "{:.2f} in"))
+                self.labels["Precip_max"].setText(_fmt_daily("Precip_max", "{:.0f}%"))
+
+                # Wind|Gusts
+                wind_val = item.get("Wind_max")
+                gust_val = item.get("Gusts_max")
+                if wind_val is None:
+                    wind_text = "--"
+                else:
+                    try:
+                        wind_text = f"{int(round(float(wind_val)))} mph"
+                    except Exception:
+                        wind_text = _fmt_daily("Wind_max", "{:.1f} mph")
+                if gust_val is None:
+                    gust_text = "--"
+                else:
+                    try:
+                        gust_text = f"{int(round(float(gust_val)))} mph"
+                    except Exception:
+                        gust_text = _fmt_daily("Gusts_max", "{:.1f} mph")
+                self.labels["Wind_max|Gusts_max"].setText(f"{wind_text}|{gust_text}")
+
+                # Visibility and UV
+                vis_val = item.get("Vis_min")
+                if vis_val is None:
+                    self.labels["Vis_min"].setText("--")
+                else:
+                    try:
+                        self.labels["Vis_min"].setText(main._visibility_text(vis_val))
+                    except Exception:
+                        self.labels["Vis_min"].setText("--")
+
+                uv_val = item.get("UV_max")
+                if uv_val is None:
+                    self.labels["UV_max"].setText("--")
+                else:
+                    try:
+                        self.labels["UV_max"].setText(main._uv_text(uv_val))
+                    except Exception:
+                        self.labels["UV_max"].setText("--")
+
+                # Sunrise|Sunset
+                sunrise_val = item.get("Sunrise") or "--"
+                sunset_val = item.get("Sunset") or "--"
+                self.labels["Sunrise|Sunset"].setText(f"{sunrise_val}|{sunset_val}")
+
+        # Pre-create 7 DayCard widgets and add them to the horizontal layout
+        self._daily_cards = []
+        for _ in range(7):
+            card = DayCardWidget()
+            self._daily_cards.append(card)
+            daily_hbox.addWidget(card)
+
+        # Add a stretch at the end so cards align to the left when there is
+        # extra horizontal space.
+        daily_hbox.addStretch()
+
         daily_scroll.setWidget(daily_container)
+        # --- End 7-day forecast area ---
 
         # Build the tab widget and place existing sections into tabs. Per the
         # task requirements, we MOVE existing widgets into tabs rather than
@@ -650,96 +762,9 @@ class MainWindow(QWidget):
             daily = data.get("daily")
             if daily and isinstance(daily, list):
                 for i, item in enumerate(daily[:7]):
-                    cells = self._daily_rows[i]
-                    # Date (worker provides formatted MM-DD(AbbrevWeekday))
-                    cells["Date"].setText(item.get("Date", "--"))
-
-                    # Description icon and text
-                    svg_name = item.get("svg")
-                    if svg_name:
-                        pix = self._load_svg_pixmap(svg_name, size=24)
-                        if pix:
-                            cells["Description_icon"].setPixmap(pix)
-                        else:
-                            cells["Description_icon"].clear()
-                    else:
-                        cells["Description_icon"].clear()
-                    desc_text = item.get("description")
-                    if desc_text:
-                        # Parenthetical description with no space
-                        cells["Description_text"].setText(f"({desc_text})")
-                    else:
-                        cells["Description_text"].setText("--")
-
-                    # Numeric fields
-                    def _fmt_daily(key, fmt):
-                        val = item.get(key)
-                        if val is None:
-                            return "--"
-                        try:
-                            if isinstance(val, float):
-                                return fmt.format(val)
-                            return str(val)
-                        except Exception:
-                            return "--"
-
-                    tmax = _fmt_daily("Tmax", "{:.0f}°F")
-                    tmin = _fmt_daily("Tmin", "{:.0f}°F")
-                    cells["Tmax|Tmin"].setText(f"{tmax}|{tmin}")
-
-                    cells["Humid_max"].setText(_fmt_daily("Humid_max", "{:.0f}%"))
-                    cells["Cloud_max"].setText(_fmt_daily("Cloud_max", "{:.0f}%"))
-                    cells["Rain_tot"].setText(_fmt_daily("Rain_tot", "{:.2f} in"))
-                    cells["Snow_tot"].setText(_fmt_daily("Snow_tot", "{:.2f} in"))
-                    cells["Precip_max"].setText(_fmt_daily("Precip_max", "{:.0f}%"))
-
-                    # Wind and Gusts combined
-                    wind_val = item.get("Wind_max")
-                    gust_val = item.get("Gusts_max")
-                    if wind_val is None:
-                        wind_text = "--"
-                    else:
-                        try:
-                            wind_text = f"{int(round(float(wind_val)))} mph"
-                        except Exception:
-                            wind_text = _fmt_daily("Wind_max", "{:.1f} mph")
-                    if gust_val is None:
-                        gust_text = "--"
-                    else:
-                        try:
-                            gust_text = f"{int(round(float(gust_val)))} mph"
-                        except Exception:
-                            gust_text = _fmt_daily("Gusts_max", "{:.1f} mph")
-                    cells["Wind_max|Gusts_max"].setText(f"{wind_text}|{gust_text}")
-
-                    # Visibility and UV text
-                    vis_val = item.get("Vis_min")
-                    if vis_val is None:
-                        cells["Vis_min"].setText("--")
-                    else:
-                        try:
-                            cells["Vis_min"].setText(self._visibility_text(vis_val))
-                        except Exception:
-                            cells["Vis_min"].setText("--")
-
-                    uv_val = item.get("UV_max")
-                    if uv_val is None:
-                        cells["UV_max"].setText("--")
-                    else:
-                        try:
-                            cells["UV_max"].setText(self._uv_text(uv_val))
-                        except Exception:
-                            cells["UV_max"].setText("--")
-
-                    # Sunrise / Sunset: worker already provides formatted text (e.g. "7:01AM")
-                    # But we defensively check for presence and fallback to "--"
-                    sunrise_val = item.get("Sunrise")
-                    sunset_val = item.get("Sunset")
-                    if sunrise_val is None:
-                        sunrise_val = "--"
-                    if sunset_val is None:
-                        sunset_val = "--"
-                    cells["Sunrise|Sunset"].setText(f"{sunrise_val}|{sunset_val}")
+                    if i < len(self._daily_cards):
+                        card = self._daily_cards[i]
+                        card.populate_from_dict(item, self)
 
         except Exception as exc:
             # Defensive: show error but don't crash the application
