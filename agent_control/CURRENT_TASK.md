@@ -30,7 +30,7 @@ Modify these modules only as needed to meet the goal, including docstrings and c
 #### NOW Tab:
 
 - Current time (in %l:%M %P format) and today's date (in %b %d %Y (%a) format), separated by comma ',', should be displayed above the SVG icon and description field. Example: " 3:45 PM, Sep 15 2024 (Sun)".
-- Current time and date should be styled with a smaller font size than the description field, and should be left-justified.
+- Current time and date should be left-justified, and styled with the same font size as the data fields below description.
 - Time and date should auto-update with auto-refresh and upon clicking "Refresh Now" button.
 
 #### HOURLY Tab:
