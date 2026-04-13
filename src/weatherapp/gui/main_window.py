@@ -72,10 +72,10 @@ class MainWindow(QWidget):
         self.rain_label = QLabel("-- in")
         self.snow_label = QLabel("-- in")
         self.precip_label = QLabel("--%")
-        self.wind_label = QLabel("-- mph")
-        self.gusts_label = QLabel("-- mph")
+        self.wind_label = QLabel("--mph")
+        self.gusts_label = QLabel("--mph")
         # Combined label for Wind|Gusts (Version-4.2)
-        self.wind_gusts_label = QLabel("-- mph|-- mph")
+        self.wind_gusts_label = QLabel("--mph|--mph")
         self.visibility_label = QLabel("--")
         self.uv_label = QLabel("--")
         self.refresh_button = QPushButton("Refresh Now")
@@ -271,7 +271,7 @@ class MainWindow(QWidget):
                     ("Rain_tot", "--"),
                     ("Snow_tot", "--"),
                     ("Precip_max", "--"),
-                    ("Wind_max|Gusts_max", "--"),
+                    ("Wind_mx|Gusts_mx", "--"),
                     ("Vis_min", "--"),
                     ("UV_max", "--"),
                     ("Sunrise|Sunset", "--"),
@@ -343,17 +343,17 @@ class MainWindow(QWidget):
                     wind_text = "--"
                 else:
                     try:
-                        wind_text = f"{int(round(float(wind_val)))} mph"
+                        wind_text = f"{int(round(float(wind_val)))}mph"
                     except Exception:
-                        wind_text = _fmt_daily("Wind_max", "{:.1f} mph")
+                        wind_text = _fmt_daily("Wind_max", "{:.1f}mph")
                 if gust_val is None:
                     gust_text = "--"
                 else:
                     try:
-                        gust_text = f"{int(round(float(gust_val)))} mph"
+                        gust_text = f"{int(round(float(gust_val)))}mph"
                     except Exception:
-                        gust_text = _fmt_daily("Gusts_max", "{:.1f} mph")
-                self.labels["Wind_max|Gusts_max"].setText(f"{wind_text}|{gust_text}")
+                        gust_text = _fmt_daily("Gusts_max", "{:.1f}mph")
+                self.labels["Wind_mx|Gusts_mx"].setText(f"{wind_text}|{gust_text}")
 
                 # Visibility and UV
                 vis_val = item.get("Vis_min")
@@ -640,21 +640,21 @@ class MainWindow(QWidget):
                 self.precip_label.setText(f"{int(round(data['precipitation_probability']))}%")
 
             # Wind and Gusts
-            wind_text = "-- mph"
-            gusts_text = "-- mph"
+            wind_text = "--mph"
+            gusts_text = "--mph"
             if "wind_speed" in data:
                 try:
-                    wind_text = f"{int(round(float(data['wind_speed'])))} mph"
+                    wind_text = f"{int(round(float(data['wind_speed'])))}mph"
                     self.wind_label.setText(wind_text)
                 except Exception:
-                    wind_text = f"{float(data['wind_speed']):.1f} mph"
+                    wind_text = f"{float(data['wind_speed']):.1f}mph"
                     self.wind_label.setText(wind_text)
             if "wind_gusts" in data:
                 try:
-                    gusts_text = f"{int(round(float(data['wind_gusts'])))} mph"
+                    gusts_text = f"{int(round(float(data['wind_gusts'])))}mph"
                     self.gusts_label.setText(gusts_text)
                 except Exception:
-                    gusts_text = f"{float(data['wind_gusts']):.1f} mph"
+                    gusts_text = f"{float(data['wind_gusts']):.1f}mph"
                     self.gusts_label.setText(gusts_text)
             # Update combined wind|gusts label
             self.wind_gusts_label.setText(f"{wind_text} | {gusts_text}")
@@ -726,16 +726,16 @@ class MainWindow(QWidget):
                         wind_text = "--"
                     else:
                         try:
-                            wind_text = f"{int(round(float(wind_val)))} mph"
+                            wind_text = f"{int(round(float(wind_val)))}mph"
                         except Exception:
-                            wind_text = _fmt_num("Wind", "{:.1f} mph")
+                            wind_text = _fmt_num("Wind", "{:.1f}mph")
                     if gust_val is None:
                         gust_text = "--"
                     else:
                         try:
-                            gust_text = f"{int(round(float(gust_val)))} mph"
+                            gust_text = f"{int(round(float(gust_val)))}mph"
                         except Exception:
-                            gust_text = _fmt_num("Gusts", "{:.1f} mph")
+                            gust_text = _fmt_num("Gusts", "{:.1f}mph")
                     cells["Wind|Gusts"].setText(f"{wind_text}|{gust_text}")
 
                     # Visibility -> textual category

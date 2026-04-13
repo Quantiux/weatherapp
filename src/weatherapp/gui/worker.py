@@ -317,9 +317,9 @@ class Worker(QObject):
                             # normalize to datetime
                             dt = datetime(dt.year, dt.month, dt.day)
 
-                        # Format Date as MM-DD(AbbrevWeekday) with no space before parenthesis
+                        # Format Date as MM-DD (AbbrevWeekday)
                         try:
-                            date_label = dt.strftime("%m-%d(%a)")
+                            date_label = dt.strftime("%m-%d (%a)")
                         except Exception:
                             date_label = dt.strftime("%m-%d") + "(%a)"
 
