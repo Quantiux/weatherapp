@@ -8,28 +8,28 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 4.4
+Version: 4.5
 
 Description:
 
-Version-4.4 improves the 7-day forecast card UI by increasing the prominence of the date label, rendering larger SVG icons (48x48) inside each card, and showing the parenthetical description in bold text with spacing between the icon and text. The worker and data structures remain unchanged.
+Version-4.5 adds a current time and today's date label to the NOW tab above the weather icon and description. The time/date label is left-justified and styled to match the data value font size. Time auto-updates every 10 seconds and also refreshes when the user clicks "Refresh Now" or when the periodic refresh triggers. The worker and data structures remain unchanged.
 
 ---
 
 ## Implemented Changes
 
 - Updated UI in `src/weatherapp/gui/main_window.py` to:
-  - Make the Date label in each DayCardWidget bold and slightly larger.
-  - Render SVG icons in daily cards at 48x48 pixels and increase spacing between icon and text.
-  - Make the parenthetical description in the card bold.
-- No worker changes were necessary.
+  - Add a left-justified time/date label above the NOW tab icon and description.
+  - Time/date format: " 3:45 PM, Sep 15 2024 (Sun)" (time in 12-hour format with AM/PM, date as abbrev month day year and weekday in parentheses).
+  - Time label auto-updates on a 10-second timer and on manual/periodic refresh triggers.
+  - No changes to worker.py or signal/slot wiring.
 
 ---
 
 ## Files Modified
 
-- `src/weatherapp/gui/main_window.py` (UI layout changes: DayCardWidget visual updates)
-- `agent_control/STATE.md` (updated to Version-4.4)
+- `src/weatherapp/gui/main_window.py` (UI layout changes: added NOW tab time/date label)
+- `agent_control/STATE.md` (updated to Version-4.5)
 
 ---
 

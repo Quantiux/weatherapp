@@ -80,6 +80,21 @@ class MainWindow(QWidget):
         self.uv_label = QLabel("--")
         self.refresh_button = QPushButton("Refresh Now")
 
+        # Time row: current time and today's date (placed above icon + description)
+        # Left-justified and styled to match the data value font size.
+        time_row = QHBoxLayout()
+        time_row.setContentsMargins(0, 10, 0, 0)
+        time_row.setSpacing(0)
+        time_row.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.time_label = QLabel("--")
+        # Use the data-value font as the baseline so the time/date matches the
+        # same point size as the grid values below.
+        time_font = self.temp_feels_label.font()
+        time_font.setPointSize(max(9, time_font.pointSize() + 2))
+        self.time_label.setFont(time_font)
+        self.time_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        time_row.addWidget(self.time_label)
+
         # Top row: icon then weather description. Keep a small spacing
         # between the icon and the description and align them vertically.
         top_row = QHBoxLayout()
@@ -428,6 +443,7 @@ class MainWindow(QWidget):
         now_layout = QVBoxLayout()
         now_layout.setContentsMargins(0, 0, 0, 0)
         now_layout.setSpacing(8)
+        now_layout.addLayout(time_row)
         now_layout.addLayout(top_row)
         now_layout.addLayout(grid)
         now_layout.addWidget(self.refresh_button)
@@ -484,7 +500,14 @@ class MainWindow(QWidget):
         self._timer.timeout.connect(self.on_refresh_clicked)
         self._timer.start()
 
-        # Request an initial fetch to populate UI
+        # Update time_label on timer and when refreshing
+        self._time_update_timer = QTimer(self)
+        self._time_update_timer.setInterval(10 * 1000)  # update every 10 seconds
+        self._time_update_timer.timeout.connect(self._update_time_label)
+        self._time_update_timer.start()
+
+        # Request an initial fetch to populate UI and set initial time
+        self._update_time_label()
         self.request_fetch.emit()
 
     def closeEvent(self, event) -> None:
@@ -596,6 +619,36 @@ class MainWindow(QWidget):
                 return dt_obj.strftime("%I:%M%p").lstrip("0")
             except Exception:
                 return "--"
+
+    def _update_time_label(self) -> None:
+        """Update the time_label with current local time and today's date.
+
+        Format per CURRENT_TASK.md:
+        - time: "%l:%M %P" (e.g. " 3:45 PM")
+        - date: "%b %d %Y (%a)" (e.g. "Sep 15 2024 (Sun)")
+        Combine: " 3:45 PM, Sep 15 2024 (Sun)"
+
+        Use left-justified text and defensive formatting to avoid crashes on
+        platforms with limited strftime support.
+        """
+        try:
+            now = datetime.now()
+            # time with leading space for single-digit hour to match example
+            try:
+                time_str = now.strftime("%I:%M %p").lstrip("0")
+                # Ensure single-digit hour has a leading space (" 3:45 PM")
+                if len(time_str) > 0 and time_str[0].isdigit() and time_str[0] != ' ':
+                    time_str = ' ' + time_str
+            except Exception:
+                time_str = now.strftime("%H:%M")
+            try:
+                date_str = now.strftime("%b %d %Y (%a)")
+            except Exception:
+                date_str = now.strftime("%Y-%m-%d")
+            self.time_label.setText(f"{time_str}, {date_str}")
+        except Exception:
+            # Non-fatal: keep previous value
+            pass
 
     def on_weather_fetched(self, data: dict) -> None:
         """Update UI widgets with data returned from the Worker.
