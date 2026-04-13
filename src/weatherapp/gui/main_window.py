@@ -241,21 +241,32 @@ class MainWindow(QWidget):
                 layout.setHorizontalSpacing(8)
                 layout.setContentsMargins(8, 8, 8, 8)
 
-                # Date row (spans two columns)
+                # Date row (spans two columns) - make date label bold for readability
                 self.date_label = QLabel("--")
+                date_font = self.date_label.font()
+                # date_font.setBold(True)
+                date_font.setPointSize(max(10, date_font.pointSize() + 2))
+                self.date_label.setFont(date_font)
                 self.date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 layout.addWidget(self.date_label, 0, 0, 1, 2)
 
                 # Icon + description (next row, spans two columns)
                 self.icon_label = QLabel()
-                self.icon_label.setFixedSize(24, 24)
-                self.icon_label.setScaledContents(False)
+                # Increase icon size to 32x32 as required by Version-4.4
+                self.icon_label.setFixedSize(32, 32)
+                self.icon_label.setScaledContents(True)
                 self.desc_label = QLabel("--")
+                # Description text should be bold
+                desc_font = self.desc_label.font()
+                # desc_font.setBold(True)
+                desc_font.setPointSize(max(10, desc_font.pointSize() + 2))
+                self.desc_label.setFont(desc_font)
                 self.desc_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 desc_widget = QWidget()
                 desc_layout = QHBoxLayout()
-                desc_layout.setContentsMargins(0, 0, 0, 0)
-                desc_layout.setSpacing(0)
+                desc_layout.setContentsMargins(4, 0, 0, 0)
+                # Add spacing so there is visible space between icon and description text
+                desc_layout.setSpacing(8)
                 desc_layout.addWidget(self.icon_label)
                 desc_layout.addWidget(self.desc_label)
                 desc_widget.setLayout(desc_layout)
@@ -297,7 +308,8 @@ class MainWindow(QWidget):
                 svg_name = item.get("svg")
                 if svg_name:
                     try:
-                        pix = main._load_svg_pixmap(svg_name, size=24)
+                        # Load a larger pixmap (48px) for the card icon per Version-4.4
+                        pix = main._load_svg_pixmap(svg_name, size=48)
                         if pix:
                             self.icon_label.setPixmap(pix)
                         else:
@@ -307,7 +319,7 @@ class MainWindow(QWidget):
                 else:
                     self.icon_label.clear()
 
-                # Description text (parenthetical, no leading space required here)
+                # Description text (parenthetical)
                 desc_text = item.get("description")
                 if desc_text:
                     self.desc_label.setText(f"({desc_text})")

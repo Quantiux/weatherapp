@@ -8,28 +8,28 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 4.3
+Version: 4.4
 
 Description:
 
-Version-4.3 replaces the 7-day forecast grid with a horizontal card-based layout. Each day is displayed in its own bordered card (QFrame) arranged horizontally inside a QScrollArea. The worker and data structures are unchanged; the UI now uses DayCardWidget instances to render daily metrics using the same formatting helpers and icon rendering logic as other tabs.
+Version-4.4 improves the 7-day forecast card UI by increasing the prominence of the date label, rendering larger SVG icons (48x48) inside each card, and showing the parenthetical description in bold text with spacing between the icon and text. The worker and data structures remain unchanged.
 
 ---
 
 ## Implemented Changes
 
 - Updated UI in `src/weatherapp/gui/main_window.py` to:
-  - Replace the daily grid/table with a scrollable horizontal row of DayCardWidget instances.
-  - DayCardWidget uses a QGridLayout internally with two columns (label/value) and reuses formatting helpers and SVG rendering logic.
+  - Make the Date label in each DayCardWidget bold and slightly larger.
+  - Render SVG icons in daily cards at 48x48 pixels and increase spacing between icon and text.
+  - Make the parenthetical description in the card bold.
 - No worker changes were necessary.
 
 ---
 
 ## Files Modified
 
-- `src/weatherapp/gui/main_window.py` (UI layout change: replaced daily grid with horizontal card-based layout)
-- `agent_control/PLAN.md` (updated to Version-4.3 plan)
-- `agent_control/STATE.md` (this update)
+- `src/weatherapp/gui/main_window.py` (UI layout changes: DayCardWidget visual updates)
+- `agent_control/STATE.md` (updated to Version-4.4)
 
 ---
 
@@ -49,8 +49,8 @@ Version-4.3 replaces the 7-day forecast grid with a horizontal card-based layout
 
 ## Next Steps
 
-1. Run the app locally with PyQt6 installed: `PYTHONPATH=src python -m weatherapp.app` and visually verify the 7-day tab shows seven bordered cards arranged horizontally in a scroll area.
-2. If desired, add a small smoke test that constructs MainWindow without launching the full Qt event loop to assert that widget creation and layout succeed.
+1. Run the app locally with PyQt6 installed: `PYTHONPATH=src python -m weatherapp.app` and visually verify the 7-day tab shows date labels in bold, larger 48x48 icons, and bold parenthetical descriptions with proper spacing.
+2. If desired, add a smoke test that constructs MainWindow without launching the full Qt event loop to assert widget creation and layout succeed.
 
 ---
 
