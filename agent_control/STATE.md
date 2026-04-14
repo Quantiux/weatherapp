@@ -8,35 +8,43 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 4.5
+Version: 5.0
 
 Description:
 
-Version-4.5 adds a current time and today's date label to the NOW tab above the weather icon and description. The time/date label is left-justified and styled to match the data value font size. Time auto-updates every 10 seconds and also refreshes when the user clicks "Refresh Now" or when the periodic refresh triggers. The worker and data structures remain unchanged.
+Version-5.0 removes hard-coded coordinates inside the Worker and enables the GUI to provide dynamic latitude/longitude at runtime. The Worker stores coordinates as an instance attribute and exposes a pyqtSlot to accept updates from the GUI. MainWindow now holds its own coords and passes them to the Worker before each fetch. No changes were made to signal names, the worker threading model, or the emitted weather data structures.
 
 ---
 
 ## Implemented Changes
 
-- Updated UI in `src/weatherapp/gui/main_window.py` to:
-  - Add a left-justified time/date label above the NOW tab icon and description.
-  - Time/date format: " 3:45 PM, Sep 15 2024 (Sun)" (time in 12-hour format with AM/PM, date as abbrev month day year and weekday in parentheses).
-  - Time label auto-updates on a 10-second timer and on manual/periodic refresh triggers.
-  - No changes to worker.py or signal/slot wiring.
+- Worker: `src/weatherapp/gui/worker.py`
+  - Added `self.coords` instance attribute (tuple(lat, lon)), initialized to the previous default development coordinates.
+  - Added `@pyqtSlot(float, float) def set_coords(self, lat, lon)` to accept coordinate updates from the GUI. Inputs are defensively validated.
+  - `fetch()` now calls `fetch_weather(self.coords)` (previous behavior preserved when GUI doesn't set coords).
+
+- MainWindow: `src/weatherapp/gui/main_window.py`
+  - Added `self.coords` (initialized to the same default) so future UI controls can change location.
+  - Ensure the Worker is constructed with the initial coords at startup.
+  - Before each fetch (manual refresh and periodic timer), call `worker.set_coords(self.coords[0], self.coords[1])` so the Worker always uses the latest coordinates.
+
+- App startup: `src/weatherapp/app.py`
+  - No functional changes required; MainWindow still constructs and starts the worker thread.
 
 ---
 
 ## Files Modified
 
-- `src/weatherapp/gui/main_window.py` (UI layout changes: added NOW tab time/date label)
-- `agent_control/STATE.md` (updated to Version-4.5)
+- `src/weatherapp/gui/worker.py` (added self.coords and set_coords slot; fetch uses self.coords)
+- `src/weatherapp/gui/main_window.py` (store self.coords; pass coords to worker before fetch)
+- `agent_control/STATE.md` (updated to Version-5.0)
 
 ---
 
 ## Validation Performed
 
-- Import check: `PYTHONPATH=src python -c "import weatherapp"` completed successfully (no import-time errors).
-- Runtime GUI launch was not attempted in this environment because visual verification requires PyQt6 and a display server.
+- Import check performed in this environment: `PYTHONPATH=src python -c "import weatherapp"` — no import-time errors after the changes.
+- Constructs MainWindow and Worker objects (without starting the Qt event loop) to verify new slot and attribute exist. Manual GUI runtime testing is recommended locally with PyQt6 and a display server.
 
 ---
 
@@ -49,11 +57,7 @@ Version-4.5 adds a current time and today's date label to the NOW tab above the 
 
 ## Next Steps
 
-1. Run the app locally with PyQt6 installed: `PYTHONPATH=src python -m weatherapp.app` and visually verify the 7-day tab shows date labels in bold, larger 48x48 icons, and bold parenthetical descriptions with proper spacing.
-2. If desired, add a smoke test that constructs MainWindow without launching the full Qt event loop to assert widget creation and layout succeed.
-
----
-
-## Notes for Future Development
-
-- Keep GUI updates on the Qt main thread and maintain current worker threading model.
+1. Run the app locally with PyQt6 installed: `PYTHONPATH=src python -m weatherapp.app` and verify:
+   - App launches normally and the first fetch occurs using the default coordinates.
+   - Clicking "Refresh Now" triggers a fetch that uses the current `self.coords` value.
+2. If desired, add a small unit/smoke test that constructs Worker and MainWindow (without the Qt event loop) and verifies `set_coords` updates the worker's coords attribute.

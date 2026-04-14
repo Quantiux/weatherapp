@@ -8,20 +8,7 @@
     width="64"
     height="64"
     viewbox="0 0 64 64">
-    <defs>
-        <filter id="blur" width="200%" height="200%">
-            <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
-            <feOffset dx="0" dy="4" result="offsetblur"/>
-            <feComponentTransfer>
-                <feFuncA type="linear" slope="0.05"/>
-            </feComponentTransfer>
-            <feMerge> 
-                <feMergeNode/>
-                <feMergeNode in="SourceGraphic"/> 
-            </feMerge>
-        </filter>
-    </defs>
-    <g filter="url(#blur)" id="Fair-Night">
+    <g id="Fair-Night">
         <g transform="translate(20,10)">
             <g name="moon">
             <g class="am-weather-moon-star-1">

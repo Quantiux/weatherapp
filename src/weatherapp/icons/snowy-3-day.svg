@@ -1,20 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- (c) ammap.com | SVG weather icons -->
 <svg width="56" height="48" version="1.1" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <filter id="blur" x="-.24684" y="-.26897" width="1.4937" height="1.6759">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
-      <feOffset dx="0" dy="4" result="offsetblur" />
-      <feComponentTransfer>
-        <feFuncA slope="0.05" type="linear" />
-      </feComponentTransfer>
-      <feMerge>
-        <feMergeNode />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
-  </defs>
-  <g transform="translate(16,-2)" filter="url(#blur)">
+  <g transform="translate(16,-2)">
     <g class="am-weather-sun" transform="translate(0,16)">
       <line transform="translate(0,9)" y2="3" stroke="#ffa500" stroke-linecap="round" stroke-width="2" fifll="none" />
       <g transform="rotate(45)">

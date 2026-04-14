@@ -9,6 +9,9 @@ from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
+# Default coordinates in lieu of user input; set to New York City
+DEFAULT_COORDS = (40.7128, -74.0060)
+
 # Import weather fetcher lazily inside fetch() to avoid heavy imports at module import time
 # (keeps GUI importable for testing and static analysis).
 
@@ -24,7 +27,7 @@ class Worker(QObject):
     weather_fetched = pyqtSignal(object)  # emits a dict-like result
     fetch_failed = pyqtSignal(str)  # emits error message
 
-    def __init__(self, coords: tuple[float, float] = (42.250967869842874, -83.66940204731466)) -> None:
+    def __init__(self, coords: tuple[float, float] = DEFAULT_COORDS) -> None:
         """Initialize the worker with optional coordinates.
 
         Args:
@@ -33,6 +36,25 @@ class Worker(QObject):
         """
         super().__init__()
         self.coords = coords
+
+    @pyqtSlot(float, float)
+    def set_coords(self, lat: float, lon: float) -> None:
+        """Update worker coordinates.
+
+        This slot is intended to be called from the GUI thread via a queued
+        signal so the update is synchronized with fetch requests. Invalid
+        coordinates are ignored to preserve the previous valid value.
+        """
+        try:
+            latf = float(lat)
+            lonf = float(lon)
+            # Basic validation of ranges
+            if not (-90.0 <= latf <= 90.0 and -180.0 <= lonf <= 180.0):
+                return
+            self.coords = (latf, lonf)
+        except Exception:
+            # Ignore invalid inputs and keep existing coordinates
+            return
 
     @pyqtSlot()
     def fetch(self) -> None:

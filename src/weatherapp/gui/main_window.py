@@ -1,10 +1,7 @@
 """Main window implementation for WeatherApp.
 
-Version-2.2: display mapping for visibility and UV index values and show the
-next 24-hour hourly forecast beginning with the hour after the current hour.
-Wind and gust values are displayed rounded to the nearest integer.
-Only visual/display logic is changed — worker threads, networking, and data
-structures are unchanged.
+Version-5.0: Worker coordinates are now dynamic and updated from the GUI
+before each fetch request. UI and data display behavior remain unchanged.
 """
 
 from pathlib import Path
@@ -25,7 +22,7 @@ from PyQt6.QtSvg import QSvgRenderer
 from typing import Optional
 from datetime import datetime
 
-from weatherapp.gui.worker import Worker
+from weatherapp.gui.worker import Worker, DEFAULT_COORDS
 
 class MainWindow(QWidget):
     """Main window for WeatherApp with display adjustments for Version-2.1.
@@ -478,7 +475,11 @@ class MainWindow(QWidget):
 
         # Worker thread setup: create thread, worker, and connect signals/slots
         self._thread: Optional[QThread] = QThread()
-        self._worker = Worker()
+        # Initialize MainWindow coordinates (default matches Worker defaults)
+        # Keep coords stored on the MainWindow so future UI changes can update them.
+        self.coords = DEFAULT_COORDS
+
+        self._worker = Worker(self.coords)
         self._worker.moveToThread(self._thread)
 
         # Connect: request_fetch emits a queued call to worker.fetch
@@ -492,12 +493,33 @@ class MainWindow(QWidget):
         self._thread.start()
 
         # Connect UI actions to request a fetch when the user clicks the button
-        self.refresh_button.clicked.connect(self.on_refresh_clicked)
+        # Ensure we pass current coordinates to the worker before requesting fetch
+        def _on_refresh_with_coords():
+            try:
+                # Call the worker's set_coords slot via a direct method call; the
+                # Worker lives in another thread but this slot is a PyQt slot and
+                # will be queued when invoked across threads via a signal. To keep
+                # the change queued we emit a small lambda via QTimer.singleShot(0).
+                # Simpler approach: call the slot directly — PyQt will queue it.
+                self._worker.set_coords(self.coords[0], self.coords[1])
+            except Exception:
+                # If direct call fails for any reason, fall back to setting an
+                # attribute which the worker will read (defensive), though the
+                # preferred approach is the set_coords slot.
+                try:
+                    self._worker.coords = (float(self.coords[0]), float(self.coords[1]))
+                except Exception:
+                    pass
+            # Now request fetch as before
+            self.request_fetch.emit()
 
-        # Automatic refresh every 10 minutes (600000 ms)
+        self.refresh_button.clicked.connect(_on_refresh_with_coords)
+
+        # Automatic refresh every 10 minutes (600000 ms) — reuse the same wrapper
         self._timer = QTimer(self)
         self._timer.setInterval(10 * 60 * 1000)
-        self._timer.timeout.connect(self.on_refresh_clicked)
+        self._timer.timeout.connect(_on_refresh_with_coords)
+
         self._timer.start()
 
         # Update time_label on timer and when refreshing
