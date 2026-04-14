@@ -250,7 +250,7 @@ class MainWindow(QWidget):
                 super().__init__()
                 self.setFrameShape(QFrame.Shape.StyledPanel)
                 self.setLineWidth(1)
-                self.setFixedWidth(240)
+                self.setFixedWidth(252)
                 layout = QGridLayout()
                 layout.setVerticalSpacing(6)
                 layout.setHorizontalSpacing(8)
@@ -297,7 +297,7 @@ class MainWindow(QWidget):
                     ("Rain_tot", "--"),
                     ("Snow_tot", "--"),
                     ("Precip_max", "--"),
-                    ("Wind_mx|Gusts_mx", "--"),
+                    ("Wind_max|Gusts_max", "--"),
                     ("Vis_min", "--"),
                     ("UV_max", "--"),
                     ("Sunrise|Sunset", "--"),
@@ -380,7 +380,7 @@ class MainWindow(QWidget):
                         gust_text = f"{int(round(float(gust_val)))}mph"
                     except Exception:
                         gust_text = _fmt_daily("Gusts_max", "{:.1f}mph")
-                self.labels["Wind_mx|Gusts_mx"].setText(f"{wind_text}|{gust_text}")
+                self.labels["Wind_max|Gusts_max"].setText(f"{wind_text}|{gust_text}")
 
                 # Visibility and UV
                 vis_val = item.get("Vis_min")
