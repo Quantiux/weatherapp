@@ -9,8 +9,9 @@ from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
-# Default coordinates in lieu of user input; set to New York City
-DEFAULT_COORDS = (40.7128, -74.0060)
+# Default coordinates in lieu of user input
+# DEFAULT_COORDS = (40.7128, -74.0060)  # New York City
+DEFAULT_COORDS = (42.250967869842874, -83.66940204731466) # Ann Arbor
 
 # Import weather fetcher lazily inside fetch() to avoid heavy imports at module import time
 # (keeps GUI importable for testing and static analysis).
