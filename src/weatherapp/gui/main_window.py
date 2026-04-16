@@ -20,7 +20,8 @@ from PyQt6.QtCore import QTimer, QThread, pyqtSignal, Qt, QRectF
 from PyQt6.QtGui import QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from weatherapp.gui.worker import Worker, DEFAULT_COORDS
 
@@ -519,9 +520,10 @@ class MainWindow(QWidget):
 
         # Worker thread setup: create thread, worker, and connect signals/slots
         self._thread: Optional[QThread] = QThread()
-        # Initialize MainWindow coordinates (default matches Worker defaults)
         # Keep coords stored on the MainWindow so future UI changes can update them.
         self.coords = DEFAULT_COORDS
+        # Initialize MainWindow active timezone (used by NOW tab clock)
+        self._active_timezone: Optional[ZoneInfo] = None
 
         self._worker = Worker(self.coords)
         self._worker.moveToThread(self._thread)
@@ -732,7 +734,10 @@ class MainWindow(QWidget):
         platforms with limited strftime support.
         """
         try:
-            now = datetime.now()
+            if getattr(self, "_active_timezone", None):
+                now = datetime.now(timezone.utc).astimezone(self._active_timezone)
+            else:
+                now = datetime.now()
             # time with leading space for single-digit hour to match example
             try:
                 time_str = now.strftime("%I:%M %p").lstrip("0")
@@ -758,6 +763,14 @@ class MainWindow(QWidget):
         unexpected structure triggers a non-fatal warning dialog.
         """
         try:
+            # Update active timezone from data if provided
+            tz = data.get("timezone")
+            if tz:
+                try:
+                    self._active_timezone = ZoneInfo(tz)
+                except Exception:
+                    self._active_timezone = None
+            self._update_time_label()
             # Icon and description: prefer a rendered icon when "svg" is present
             svg = data.get("svg")
             desc = data.get("description") or data.get("weather")

@@ -476,6 +476,9 @@ class Worker(QObject):
                 # If daily extraction fails, omit daily key but continue
                 pass
 
+            # Include timezone string in result when available
+            if timezone_str:
+                result["timezone"] = timezone_str
             # Emit the result back to the GUI thread
             self.weather_fetched.emit(result)
         except Exception as exc:
