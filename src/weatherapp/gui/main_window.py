@@ -80,7 +80,7 @@ class MainWindow(QWidget):
         # Time row: current time and today's date (placed above icon + description)
         # Left-justified and styled to match the data value font size.
         time_row = QHBoxLayout()
-        time_row.setContentsMargins(0, 10, 0, 0)
+        time_row.setContentsMargins(10, 20, 0, 0)
         time_row.setSpacing(0)
         time_row.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.time_label = QLabel("--")
@@ -95,7 +95,7 @@ class MainWindow(QWidget):
         # Top row: icon then weather description. Keep a small spacing
         # between the icon and the description and align them vertically.
         top_row = QHBoxLayout()
-        top_row.setSpacing(8)
+        top_row.setSpacing(10)
         top_row.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         top_row.addWidget(self.icon_label)
         top_row.addWidget(self.weather_label)
@@ -111,6 +111,7 @@ class MainWindow(QWidget):
         # Increase spacing between rows/columns so entries are easier to read
         grid.setVerticalSpacing(8)
         grid.setHorizontalSpacing(12)
+        grid.setContentsMargins(10, 10, 10, 10)
         # Column 0: field name labels (static); Column 1: value labels (dynamic)
         field_names = [
             ("Temperature | Feels like:", self.temp_feels_label),
@@ -278,7 +279,7 @@ class MainWindow(QWidget):
                 desc_layout = QHBoxLayout()
                 desc_layout.setContentsMargins(4, 0, 0, 0)
                 # Add spacing so there is visible space between icon and description text
-                desc_layout.setSpacing(8)
+                desc_layout.setSpacing(12)
                 desc_layout.addWidget(self.icon_label)
                 desc_layout.addWidget(self.desc_label)
                 desc_widget.setLayout(desc_layout)
@@ -331,10 +332,10 @@ class MainWindow(QWidget):
                 else:
                     self.icon_label.clear()
 
-                # Description text (parenthetical)
+                # Description text
                 desc_text = item.get("description")
                 if desc_text:
-                    self.desc_label.setText(f"({desc_text})")
+                    self.desc_label.setText(f"{desc_text}")
                 else:
                     self.desc_label.setText("--")
 
@@ -692,9 +693,9 @@ class MainWindow(QWidget):
             else:
                 self.icon_label.clear()
 
-            # Description text — keep parentheses as in Version-1
+            # Description text
             if desc:
-                self.weather_label.setText(f"({desc})")
+                self.weather_label.setText(f"{desc}")
             elif "weather" in data:
                 self.weather_label.setText(str(data["weather"]))
             else:
