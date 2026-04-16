@@ -16,12 +16,6 @@ UI appearance and weather display behavior remain unchanged except for the new l
 Constraint priority rule:
 `CONSTRAINTS.md` overrides all other instructions.
 
-Modify these modules only as needed to meet the goal, including docstrings and comments to maintain clarity:
-
-- `src/weatherapp/gui/main_window.py`
-- `src/weatherapp/gui/worker.py`
-- `src/weatherapp/app.py`
-
 ### 1. Location Input Controls
 
 Add a small location editor in the top control area of the main window, above the tab bar.
