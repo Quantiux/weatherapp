@@ -38,8 +38,8 @@ WEATHER_CODE_TO_SVG = {
     82: {"day": "rainy-3-day.svg", "night": "rainy-3-night.svg"},
     85: {"day": "rain-and-snow-mix.svg", "night": "rain-and-snow-mix.svg"},
     86: {"day": "rain-and-snow-mix.svg", "night": "rain-and-snow-mix.svg"},
-    95: {"day": "isolated-thunderstorm-day.svg", "night": "isolated-thunderstorm-night.svg"},
-    96: {"day": "scattered-thunderstorm-day.svg", "night": "scattered-thunderstorm-night.svg"},
+    95: {"day": "isolated-thunderstorms-day.svg", "night": "isolated-thunderstorms-night.svg"},
+    96: {"day": "scattered-thunderstorms-day.svg", "night": "scattered-thunderstorms-night.svg"},
     99: {"day": "severe-thunderstorm.svg", "night": "severe-thunderstorm.svg"},
 }
 

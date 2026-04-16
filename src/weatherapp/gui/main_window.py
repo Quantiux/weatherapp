@@ -471,6 +471,49 @@ class MainWindow(QWidget):
         # Default tab is NOW (index 0)
         tabs.setCurrentIndex(0)
 
+        # --- Begin Location editor row (Version-5.1) ---
+        # Compact row placed above the tabs so layout disturbance is minimal.
+        from PyQt6.QtWidgets import QLineEdit
+        from PyQt6.QtGui import QDoubleValidator
+
+        loc_row = QHBoxLayout()
+        loc_row.setContentsMargins(0, 0, 0, 0)
+        loc_row.setSpacing(6)
+        loc_row.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+
+        loc_label = QLabel("Location:")
+        loc_label_font = loc_label.font()
+        loc_label_font.setPointSize(max(9, loc_label_font.pointSize()))
+        loc_label.setFont(loc_label_font)
+
+        self.lat_input = QLineEdit()
+        self.lon_input = QLineEdit()
+        validator = QDoubleValidator(-180.0, 180.0, 6, self)
+        self.lat_input.setValidator(validator)
+        self.lon_input.setValidator(validator)
+        # Small fixed width keeps the row compact
+        self.lat_input.setFixedWidth(120)
+        self.lon_input.setFixedWidth(120)
+
+        self.apply_location_button = QPushButton("Apply")
+
+        # Initialize with defaults
+        try:
+            self.lat_input.setText(f"{DEFAULT_COORDS[0]:.6f}")
+            self.lon_input.setText(f"{DEFAULT_COORDS[1]:.6f}")
+        except Exception:
+            self.lat_input.setText("0.000000")
+            self.lon_input.setText("0.000000")
+
+        loc_row.addWidget(loc_label)
+        loc_row.addWidget(self.lat_input)
+        loc_row.addWidget(self.lon_input)
+        loc_row.addWidget(self.apply_location_button)
+
+        # Insert location row above the tabs
+        main_layout.addLayout(loc_row)
+        # --- End Location editor row ---
+
         main_layout.addWidget(tabs)
         self.setLayout(main_layout)
 
@@ -528,6 +571,40 @@ class MainWindow(QWidget):
         self._time_update_timer.setInterval(10 * 1000)  # update every 10 seconds
         self._time_update_timer.timeout.connect(self._update_time_label)
         self._time_update_timer.start()
+
+        # Wire Apply button: validation + update coords + trigger fetch
+        def _apply_new_location() -> None:
+            lat_text = self.lat_input.text().strip()
+            lon_text = self.lon_input.text().strip()
+            if not lat_text or not lon_text:
+                QMessageBox.warning(self, "Invalid Input", "Latitude and longitude are required.")
+                return
+            try:
+                lat = float(lat_text)
+                lon = float(lon_text)
+            except Exception:
+                QMessageBox.warning(self, "Invalid Input", "Latitude and longitude must be numeric.")
+                return
+            # Range validation
+            if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+                QMessageBox.warning(self, "Invalid Input", "Latitude must be between -90 and 90; longitude between -180 and 180.")
+                return
+            # Update internal coords and push to worker
+            self.coords = (lat, lon)
+            try:
+                # set_coords is a pyqtSlot; calling it will queue the call across
+                # threads when appropriate. This is the preferred approach.
+                self._worker.set_coords(lat, lon)
+            except Exception:
+                try:
+                    self._worker.coords = (lat, lon)
+                except Exception:
+                    # last resort: ignore and continue — worker will keep prior coords
+                    pass
+            # Trigger immediate refresh using existing signal
+            self.request_fetch.emit()
+
+        self.apply_location_button.clicked.connect(_apply_new_location)
 
         # Request an initial fetch to populate UI and set initial time
         self._update_time_label()

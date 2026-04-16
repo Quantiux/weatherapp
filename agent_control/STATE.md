@@ -8,7 +8,74 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 5.0
+Version: 5.1
+
+Description:
+
+Version-5.1 adds a compact, user-editable location selector to the MainWindow
+(above the tab bar) and wires it to the existing background Worker. Users may
+enter latitude and longitude and press Apply to validate the inputs, update the
+MainWindow's coords, call Worker.set_coords(lat, lon), and trigger an immediate
+fetch via the existing request_fetch signal. Periodic refresh continues to use
+self.coords automatically.
+
+---
+
+## Implemented Changes
+
+- MainWindow: `src/weatherapp/gui/main_window.py`
+  - Added a compact Location row with `self.lat_input`, `self.lon_input`, and
+    `self.apply_location_button` placed above the tabs so the UI layout remains
+    stable.
+  - Inputs use `QDoubleValidator` for basic numeric entry and are initialized
+    from `DEFAULT_COORDS` so startup behavior is unchanged.
+  - Implemented `_apply_new_location()` which validates ranges (-90..90,
+    -180..180), updates `self.coords`, calls `self._worker.set_coords(lat, lon)`
+    defensively, and emits `self.request_fetch.emit()` to trigger an immediate
+    refresh.
+
+- agent_control/PLAN.md: Updated to Version-5.1 plan and steps.
+
+---
+
+## Files Modified
+
+- `src/weatherapp/gui/main_window.py` (add location row, validator, apply handler)
+- `agent_control/PLAN.md` (updated plan to reflect Version-5.1)
+- `agent_control/STATE.md` (this file)
+
+---
+
+## Validation Performed
+
+- Import check: `PYTHONPATH=src python -c "import weatherapp"` succeeded in
+  this environment (no import-time errors introduced).
+- Constructed Worker and MainWindow objects (without starting the Qt event
+  loop) to verify attributes exist: `Worker().coords` and `MainWindow().coords`
+  reflect defaults and the new widgets are present.
+
+---
+
+## Known Limitations
+
+- `_apply_new_location()` uses `QMessageBox.warning` for invalid input which is
+  a blocking dialog. This is acceptable for this small feature but could be
+  changed to a non-blocking in-UI status message in a future iteration.
+- Live GUI verification requires PyQt6 and a display server; run `PYTHONPATH=src
+  python -m weatherapp.app` locally to fully verify the interaction.
+
+---
+
+## Next Steps
+
+1. Run the app locally and verify:
+   - Inputs show default coords
+   - Entering valid coords and pressing Apply triggers a fetch using the new
+     coords
+   - Entering invalid coords shows a warning and does not trigger a fetch
+2. If desired, replace blocking QMessageBox warnings with a non-blocking
+   status label in the top row for a smoother UX.
+
 
 Description:
 

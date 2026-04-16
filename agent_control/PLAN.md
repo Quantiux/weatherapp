@@ -1,4 +1,127 @@
-# Implementation Plan (Version-5.0)
+# Implementation Plan (Version-5.1)
+
+Goal:
+
+Add a small user-editable location selector to the MainWindow and wire it to the
+existing background Worker so users can enter latitude and longitude and fetch
+weather for arbitrary coordinates. Preserve existing behavior and threading; keep
+changes minimal and localized to the MainWindow.
+
+Scope & constraints:
+
+- Modify only these files:
+  - src/weatherapp/gui/main_window.py
+  - agent_control/PLAN.md (this file)
+  - agent_control/STATE.md (documentation update after implementation)
+- Do NOT modify worker.py, data-parsing, networking, or threading model.
+- Do NOT add new dependencies.
+- Follow CONSTRAINTS.md and AGENT.md rules (PEP8 ≤100 chars, defensive error
+  handling, no blocking GUI thread).
+
+Assumptions / current context:
+
+- Worker already exposes @pyqtSlot(float, float) set_coords(lat, lon) and
+  MainWindow already stores self.coords and uses it when passing coords before
+  requesting a fetch. Periodic and manual refresh wrappers call set_coords prior
+  to emitting request_fetch. DEFAULT_COORDS is defined in worker.py.
+
+Approach (high level):
+
+1. Inspect MainWindow to find the natural place to add a compact location row
+   above the tabs/top controls.
+2. Add QLineEdit inputs for latitude and longitude with QDoubleValidator to
+   reduce invalid input. Add an Apply QPushButton.
+3. Implement _apply_new_location() to read, validate ranges, update
+   self.coords, call worker.set_coords(lat, lon) defensively, then emit
+   request_fetch to trigger an immediate refresh.
+4. Wire the Apply button and, optionally, Enter key handling. Ensure periodic
+   refresh uses the updated self.coords automatically.
+5. Run import and construction smoke checks (without launching full GUI).
+6. Update agent_control/STATE.md and run the checklist.
+
+Step-by-step plan:
+
+Task 1 — Inspect code (read-only)
+- Open src/weatherapp/gui/main_window.py and confirm:
+  - where top control area is created (above tabs)
+  - that self.coords exists and DEFAULT_COORDS is imported
+  - how refresh wrapper passes coords to the worker
+
+Deliverable: exact insertion point and variable names to use for widgets.
+
+Task 2 — Add widgets and layout
+- In MainWindow.__init__:
+  - Import QLineEdit and QDoubleValidator.
+  - Create: self.lat_input = QLineEdit(), self.lon_input = QLineEdit(),
+    self.apply_location_button = QPushButton("Apply").
+  - Attach a QDoubleValidator(-180.0, 180.0, 6, self) to both fields; clamp
+    latitude programmatically to -90..90 on Apply.
+  - Place widgets in a compact QHBoxLayout placed above the tab widget (minimal
+    disturbance to existing layout).
+  - Initialize inputs with DEFAULT_COORDS formatted (e.g. {:.6f}).
+
+Task 3 — Implement apply handler
+- Add method _apply_new_location(self) with responsibilities:
+  - Read texts, strip, convert to float, show QMessageBox.warning on parse
+    failure or out-of-range values.
+  - Validate ranges: -90 <= lat <= 90, -180 <= lon <= 180.
+  - Update self.coords = (lat, lon).
+  - Try calling self._worker.set_coords(lat, lon) inside try/except. If that
+    raises, defensively set self._worker.coords = (lat, lon).
+  - Emit self.request_fetch.emit() to trigger immediate fetch.
+- Connect self.apply_location_button.clicked.connect(self._apply_new_location).
+
+Task 4 — Keep periodic/manual refresh behavior
+- No changes expected: existing _on_refresh_with_coords wrapper calls
+  self._worker.set_coords(self.coords...) before emitting request_fetch; ensure
+  self.coords is updated by Apply so periodic refresh uses latest coords.
+
+Task 5 — Smoke & import checks
+- Run:
+  - PYTHONPATH=src python -c "import weatherapp"
+  - PYTHONPATH=src python - <<'PY'\nfrom weatherapp.gui.worker import Worker\nfrom weatherapp.gui.main_window import MainWindow\nw = Worker()\n# construct MainWindow without starting event loop\nmw = MainWindow()\nprint(mw.coords)\nPY
+- Expect no import errors and mw.coords reflects DEFAULT_COORDS; calling
+  mw._apply_new_location logic can be tested via direct method call in a
+  dev-shell.
+
+Task 6 — Update STATE.md
+- Document: Version: 5.1, brief description, files modified, verification steps,
+  and known limitations (e.g., QMessageBox is blocking; prefer non-blocking
+  status messages in future versions).
+
+Task 7 — Self-review & checklist
+- Run through agent_control/CHECKLIST.md manual items. Fix style, remove unused
+  imports, ensure only the MainWindow was changed, and no blocking I/O occurs
+  on the GUI thread.
+
+Files to change (exact):
+- src/weatherapp/gui/main_window.py
+- agent_control/PLAN.md
+- agent_control/STATE.md (update after implementation)
+
+Tests / validation
+- Import check: PYTHONPATH=src python -c "import weatherapp"
+- Construct Worker and MainWindow without running the QT event loop to verify
+  attributes exist and Apply handler does not crash when invoked with valid
+  numeric strings.
+- Manual GUI test recommended locally: verify inputs show defaults, Apply
+  updates worker coords and triggers a fetch, invalid inputs show warnings and
+  do not trigger fetch.
+
+Risks, tradeoffs, and open questions
+- Risk: Layout space is tight on small windows; keep the location row compact
+  and consider hiding on narrow widths in a future task (out of scope).
+- Risk: QMessageBox is blocking; current plan uses it for simplicity. If blocking
+  UX is unacceptable, switch to a non-blocking status label in a follow-up.
+- Tradeoff: Validator + programmatic range check gives good UX without
+  overcomplication.
+
+Estimated effort: 20–45 minutes for coding and smoke checks.
+
+Next action: Edit src/weatherapp/gui/main_window.py to add the Location row and
+_apply_new_location handler. After the change, run the import/construction
+smoke checks and update agent_control/STATE.md.
+
 
 Goal:
 
