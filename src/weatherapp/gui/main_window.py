@@ -147,9 +147,10 @@ class MainWindow(QWidget):
         from PyQt6.QtWidgets import QScrollArea, QFrame
 
         forecast_header = QLabel("24-hour forecast:")
+        forecast_header.setContentsMargins(10, 10, 0, 0)
         # Keep header styling minimal and consistent with current app style
         header_font = forecast_header.font()
-        header_font.setPointSize(max(9, header_font.pointSize() + 2))
+        header_font.setPointSize(max(9, header_font.pointSize() + 3))
         header_font.setBold(True)
         forecast_header.setFont(header_font)
 
@@ -225,8 +226,9 @@ class MainWindow(QWidget):
 
         # --- Begin 7-day forecast area (Version-4.3: card-based layout) ---
         daily_header = QLabel("7-day forecast:")
+        daily_header.setContentsMargins(10, 10, 0, 0)
         dhf = daily_header.font()
-        dhf.setPointSize(max(9, dhf.pointSize() + 2))
+        dhf.setPointSize(max(9, dhf.pointSize() + 3))
         dhf.setBold(True)
         daily_header.setFont(dhf)
 
