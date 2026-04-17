@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QPushButton,
     QMessageBox,
-    QTabWidget,
+    QTabWidget, QComboBox,
 )
 from PyQt6.QtCore import QTimer, QThread, pyqtSignal, Qt, QRectF
 from PyQt6.QtGui import QPixmap, QPainter
@@ -494,13 +494,18 @@ class MainWindow(QWidget):
         self.location_input = QLineEdit()
         # Keep a QDoubleValidator around for quick numeric validation when needed
         validator = QDoubleValidator(-180.0, 180.0, 6, self)
-        self.location_input.setFixedWidth(300)
+        self.location_input.setFixedWidth(220)
         # Note: we don't set the validator globally because input may be non-numeric
         # Initialize with defaults shown as "lat,lon" to preserve user expectations
         try:
             self.location_input.setText(f"{DEFAULT_COORDS[0]:.6f},{DEFAULT_COORDS[1]:.6f}")
         except Exception:
             self.location_input.setText("0.000000,0.000000")
+
+        # Saved locations dropdown and Save button (Version-5.4)
+        self.saved_locations = QComboBox()
+        self.saved_locations.setFixedWidth(180)
+        self.save_location_button = QPushButton("Save")
 
         self.apply_location_button = QPushButton("Apply")
 
@@ -511,8 +516,10 @@ class MainWindow(QWidget):
             self.location_input.setText("0.000000,0.000000")
 
         loc_row.addWidget(loc_label)
+        loc_row.addWidget(self.saved_locations)
         loc_row.addWidget(self.location_input)
         loc_row.addWidget(self.apply_location_button)
+        loc_row.addWidget(self.save_location_button)
 
         # Insert location row above the tabs
         main_layout.addLayout(loc_row)
@@ -527,6 +534,13 @@ class MainWindow(QWidget):
         self.coords = DEFAULT_COORDS
         # Initialize MainWindow active timezone (used by NOW tab clock)
         self._active_timezone: Optional[ZoneInfo] = None
+
+        # Configuration manager for persistent saved locations
+        try:
+            from weatherapp.config_manager import ConfigManager
+            self._config = ConfigManager()
+        except Exception:
+            self._config = None
 
         self._worker = Worker(self.coords)
         self._worker.moveToThread(self._thread)
@@ -613,9 +627,57 @@ class MainWindow(QWidget):
 
         self.apply_location_button.clicked.connect(_apply_new_location)
 
+        # Wire Save button: add location to config (if available) and update dropdown
+        def _save_location() -> None:
+            text = self.location_input.text().strip()
+            if not text:
+                QMessageBox.warning(self, "Invalid Input", "Location input is required to save.")
+                return
+            if self._config is None:
+                QMessageBox.warning(self, "Config Unavailable", "Configuration manager not available; cannot save location.")
+                return
+            try:
+                # Do not save obviously invalid strings; rely on worker to emit
+                # fetch_failed when an Apply is attempted.
+                self._config.add_location(text)
+                # Refresh dropdown
+                self._populate_saved_locations()
+            except Exception:
+                QMessageBox.warning(self, "Save Failed", "Failed to save location.")
+
+        self.save_location_button.clicked.connect(_save_location)
+
+        # Populate saved locations dropdown helper
+        def _on_saved_selection(index: int) -> None:
+            try:
+                text = self.saved_locations.currentText()
+                if text:
+                    self.location_input.setText(text)
+                    # Trigger immediate apply behavior
+                    self.request_geocode.emit(text)
+            except Exception:
+                pass
+
+        self.saved_locations.currentIndexChanged.connect(_on_saved_selection)
+
         # Request an initial fetch to populate UI and set initial time
         self._update_time_label()
-        self.request_fetch.emit()
+
+        # Populate saved locations dropdown and restore last_location if present
+        try:
+            self._populate_saved_locations()
+            if self._config is not None:
+                last = self._config.get_last_location()
+                if last:
+                    self.location_input.setText(last)
+                    # Emit geocode so the worker will fetch for last_location
+                    self.request_geocode.emit(last)
+                else:
+                    # No last location: perform default coords fetch
+                    self.request_fetch.emit()
+        except Exception:
+            # Fall back to default behavior if config lookup fails
+            self.request_fetch.emit()
 
     def closeEvent(self, event) -> None:
         """Handle window close and ensure the worker thread is stopped cleanly.
@@ -758,6 +820,18 @@ class MainWindow(QWidget):
             self.time_label.setText(f"{time_str}, {date_str}")
         except Exception:
             # Non-fatal: keep previous value
+            pass
+
+    def _populate_saved_locations(self) -> None:
+        """Load saved locations from config and populate the combobox."""
+        try:
+            self.saved_locations.clear()
+            if self._config is None:
+                return
+            for loc in self._config.get_saved_locations():
+                self.saved_locations.addItem(loc)
+        except Exception:
+            # Non-fatal: leave dropdown empty
             pass
 
     def on_weather_fetched(self, data: dict) -> None:
