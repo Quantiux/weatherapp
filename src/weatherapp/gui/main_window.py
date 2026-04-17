@@ -33,6 +33,7 @@ class MainWindow(QWidget):
 
     # Expose a signal to request the worker to fetch (queued across threads)
     request_fetch = pyqtSignal()
+    request_geocode = pyqtSignal(str)
 
     def __init__(self) -> None:
         """Construct the window, layout widgets, and start the worker thread.
@@ -489,28 +490,28 @@ class MainWindow(QWidget):
         loc_label_font.setPointSize(max(9, loc_label_font.pointSize()))
         loc_label.setFont(loc_label_font)
 
-        self.lat_input = QLineEdit()
-        self.lon_input = QLineEdit()
+        # Single free-form location input per Version-5.3
+        self.location_input = QLineEdit()
+        # Keep a QDoubleValidator around for quick numeric validation when needed
         validator = QDoubleValidator(-180.0, 180.0, 6, self)
-        self.lat_input.setValidator(validator)
-        self.lon_input.setValidator(validator)
-        # Small fixed width keeps the row compact
-        self.lat_input.setFixedWidth(120)
-        self.lon_input.setFixedWidth(120)
+        self.location_input.setFixedWidth(300)
+        # Note: we don't set the validator globally because input may be non-numeric
+        # Initialize with defaults shown as "lat,lon" to preserve user expectations
+        try:
+            self.location_input.setText(f"{DEFAULT_COORDS[0]:.6f},{DEFAULT_COORDS[1]:.6f}")
+        except Exception:
+            self.location_input.setText("0.000000,0.000000")
 
         self.apply_location_button = QPushButton("Apply")
 
-        # Initialize with defaults
+        # Initialize with defaults for the free-form location input
         try:
-            self.lat_input.setText(f"{DEFAULT_COORDS[0]:.6f}")
-            self.lon_input.setText(f"{DEFAULT_COORDS[1]:.6f}")
+            self.location_input.setText(f"{DEFAULT_COORDS[0]:.6f},{DEFAULT_COORDS[1]:.6f}")
         except Exception:
-            self.lat_input.setText("0.000000")
-            self.lon_input.setText("0.000000")
+            self.location_input.setText("0.000000,0.000000")
 
         loc_row.addWidget(loc_label)
-        loc_row.addWidget(self.lat_input)
-        loc_row.addWidget(self.lon_input)
+        loc_row.addWidget(self.location_input)
         loc_row.addWidget(self.apply_location_button)
 
         # Insert location row above the tabs
@@ -532,6 +533,7 @@ class MainWindow(QWidget):
 
         # Connect: request_fetch emits a queued call to worker.fetch
         self.request_fetch.connect(self._worker.fetch)
+        self.request_geocode.connect(self._worker.set_location_query)
 
         # Worker -> GUI signals: update display or show errors
         self._worker.weather_fetched.connect(self.on_weather_fetched)
@@ -576,37 +578,38 @@ class MainWindow(QWidget):
         self._time_update_timer.timeout.connect(self._update_time_label)
         self._time_update_timer.start()
 
-        # Wire Apply button: validation + update coords + trigger fetch
+        # Wire Apply button: accept either "lat,lon" or a free-form query
         def _apply_new_location() -> None:
-            lat_text = self.lat_input.text().strip()
-            lon_text = self.lon_input.text().strip()
-            if not lat_text or not lon_text:
-                QMessageBox.warning(self, "Invalid Input", "Latitude and longitude are required.")
+            text = self.location_input.text().strip()
+            if not text:
+                QMessageBox.warning(self, "Invalid Input", "Location input is required.")
                 return
-            try:
-                lat = float(lat_text)
-                lon = float(lon_text)
-            except Exception:
-                QMessageBox.warning(self, "Invalid Input", "Latitude and longitude must be numeric.")
-                return
-            # Range validation
-            if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
-                QMessageBox.warning(self, "Invalid Input", "Latitude must be between -90 and 90; longitude between -180 and 180.")
-                return
-            # Update internal coords and push to worker
-            self.coords = (lat, lon)
-            try:
-                # set_coords is a pyqtSlot; calling it will queue the call across
-                # threads when appropriate. This is the preferred approach.
-                self._worker.set_coords(lat, lon)
-            except Exception:
+            # Detect numeric lat,lon pattern
+            parts = [p.strip() for p in text.split(",") if p.strip()]
+            if len(parts) == 2:
                 try:
-                    self._worker.coords = (lat, lon)
+                    lat = float(parts[0])
+                    lon = float(parts[1])
+                    # Range validation
+                    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+                        QMessageBox.warning(self, "Invalid Input", "Latitude must be between -90 and 90; longitude between -180 and 180.")
+                        return
+                    # Numeric path: update coords and trigger fetch
+                    self.coords = (lat, lon)
+                    try:
+                        self._worker.set_coords(lat, lon)
+                    except Exception:
+                        try:
+                            self._worker.coords = (lat, lon)
+                        except Exception:
+                            pass
+                    self.request_fetch.emit()
+                    return
                 except Exception:
-                    # last resort: ignore and continue — worker will keep prior coords
+                    # Fallthrough to treat as query
                     pass
-            # Trigger immediate refresh using existing signal
-            self.request_fetch.emit()
+            # Non-numeric: emit geocode request to worker (queued across threads)
+            self.request_geocode.emit(text)
 
         self.apply_location_button.clicked.connect(_apply_new_location)
 

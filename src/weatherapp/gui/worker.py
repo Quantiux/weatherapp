@@ -57,6 +57,68 @@ class Worker(QObject):
             # Ignore invalid inputs and keep existing coordinates
             return
 
+    @pyqtSlot(str)
+    def set_location_query(self, query: str) -> None:
+        """Geocode a free-form location query and fetch weather for the result.
+
+        This slot runs in the worker thread (it should be connected via a queued
+        signal from the GUI). It performs blocking network I/O here (safe because
+        it's the worker thread), updates self.coords on success, and then calls
+        self.fetch() to reuse the existing fetch logic. On failure it emits
+        fetch_failed with a friendly message.
+        """
+        q = (query or "").strip()
+        if not q:
+            self.fetch_failed.emit("Location input is empty")
+            return
+        try:
+            lat, lon = self._geocode_location(q)
+            # Update coords and perform a fetch in this worker thread
+            self.coords = (lat, lon)
+            # Reuse existing fetch flow (runs in this thread)
+            self.fetch()
+        except Exception as exc:
+            # Emit a human-readable error for the GUI
+            try:
+                msg = str(exc) or "Location not found"
+            except Exception:
+                msg = "Location not found"
+            self.fetch_failed.emit(msg)
+
+    def _geocode_location(self, query: str) -> tuple[float, float]:
+        """Resolve a free-form location query to (lat, lon) using Open-Meteo geocoding.
+
+        Returns the first reasonable match as (latitude, longitude). Raises an
+        exception on network errors or if no suitable result is found.
+        """
+        # Local imports to avoid adding network deps at module import time
+        import urllib.parse
+        import urllib.request
+        import json
+
+        base = "https://geocoding-api.open-meteo.com/v1/search"
+        params = {"name": query, "count": 1, "language": "en"}
+        url = base + "?" + urllib.parse.urlencode(params)
+        req = urllib.request.Request(url, headers={"User-Agent": "WeatherApp-Agent/1.0"})
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if getattr(resp, "status", 200) != 200:
+                    raise RuntimeError(f"Geocoding request failed: {getattr(resp, 'status', 'HTTP error')}")
+                data = json.load(resp)
+        except Exception as exc:
+            raise RuntimeError(f"Geocoding failed: {exc}") from exc
+
+        if not data or "results" not in data or not data["results"]:
+            raise RuntimeError("Location not found")
+
+        first = data["results"][0]
+        try:
+            lat = float(first["latitude"])
+            lon = float(first["longitude"])
+        except Exception as exc:
+            raise RuntimeError("Invalid geocoding response") from exc
+        return lat, lon
+
     @pyqtSlot()
     def fetch(self) -> None:
         """Fetch weather data and emit signals on completion or failure.

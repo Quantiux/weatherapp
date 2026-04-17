@@ -8,11 +8,16 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 5.2
+Version: 5.3
 
 Description:
 
-Version-5.2 makes the NOW tab clock reflect the selected location's local time
+Version-5.3 adds geocoding so the Location input accepts free-form queries
+("city", "city, state", ZIP/PIN) as well as the existing "lat,lon" format.
+Geocoding runs in the Worker thread using the Open-Meteo geocoding API and
+preserves the threading and fetch flow from previous versions.
+
+Version-5.2 made the NOW tab clock reflect the selected location's local time
 by including the timezone in the worker payload and having MainWindow store and
 use a ZoneInfo instance when formatting the NOW tab time label.
 

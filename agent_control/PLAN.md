@@ -1,171 +1,138 @@
-# Implementation Plan (Version-5.2)
+# Implementation Plan (Version-5.3)
 
 Goal:
 
-Make the NOW tab clock reflect the selected location's local time (using the
-timezone provided by the weather API) instead of the machine/system clock.
-
-Architecture / Approach:
-
-- Keep changes minimal and localized to the Worker (ensure timezone is in the
-  fetch result) and MainWindow (store active timezone, use it for the NOW tab
-  clock). No UI layout, threading, or new dependencies.
+Add geocoding so the Location input accepts either "lat,lon" (unchanged) or a
+free-form location query (city name, city+state, ZIP/PIN code). Geocoding must run
+in the Worker thread, must not block the GUI, and must preserve all Version-5.2
+behavior when numeric coordinates are provided.
 
 Files to modify (exact):
 
-- src/weatherapp/gui/worker.py  (add timezone to result payload)
-- src/weatherapp/gui/main_window.py  (store active timezone; update handler and
-  _update_time_label)
+- src/weatherapp/gui/worker.py  (add set_location_query slot, _geocode_location helper,
+  call fetch() after successful geocode, emit fetch_failed on error)
+- src/weatherapp/gui/main_window.py  (replace lat/lon inputs with a single
+  QLineEdit self.location_input, add request_geocode signal, update Apply handler
+  to detect numeric lat/lon vs free-form and emit request_geocode)
+- src/weatherapp/app.py  (no changes expected; mention here only to confirm
+  app entry remains compatible)
 - agent_control/STATE.md (update after implementation)
 
-Assumptions:
+Architecture / Approach (constraints):
 
-- Worker.fetch() already extracts timezone_str from the API response (see
-  CURRENT_TASK.md). We will add that value to the result dict as result["timezone"].
-- MainWindow already has on_weather_fetched(data) or equivalent handler that
-  receives the result payload from Worker.fetch(). We'll update that handler to
-  set an active ZoneInfo instance when timezone string is available.
+- Keep changes minimal and localized to Worker and MainWindow.
+- Worker.fetch() signature remains unchanged and still accepts only coords.
+- Geocoding must be performed in the Worker thread; MainWindow only emits a
+  request_geocode(str) signal.
+- No new long-running synchronous calls in the GUI thread.
+- Do not add new dependencies unless strictly needed (use Open-Meteo Geocoding
+  which is a simple HTTP GET; use the stdlib urllib.request or requests only if
+  justified — prefer urllib to avoid adding dependencies).
 
-Acceptance criteria (from CURRENT_TASK.md):
+Acceptance criteria:
 
-- NOW tab clock shows the location's local time on app launch, after coordinate
-  change, after a refresh completes, and on the 10s timer ticks.
-- Falls back to system time if timezone is missing or invalid.
-- No UI layout changes, no threading changes, no new deps.
+- Entering numeric "lat,lon" continues to work exactly as before.
+- Entering "Ann Arbor", "Ann Arbor, MI", or a ZIP/PIN triggers geocoding in the
+  Worker and results in the same UI update flow as existing lat/lon fetches.
+- On geocode failure the Worker emits fetch_failed("Location not found") and GUI
+  shows a QMessageBox without crashing or clearing existing weather.
+- No blocking calls in GUI thread; threading and signals preserved.
 
 Step-by-step Tasks (bite-sized):
 
-Task 1 — Inspect code (read-only)
+Task 1 — Inspection (done)
 
-Objective: Locate exact symbols and handlers to change
-Files:
-- src/weatherapp/gui/worker.py
-- src/weatherapp/gui/main_window.py
+Objective: Locate exact insertion points and symbol names in the two source
+files so edits are minimal and deterministic.
 
-Steps:
-1. Open worker.py: find where timezone_str is decoded and where result dict is
-   assembled. Note variable names and where result is emitted.
-2. Open main_window.py: find on_weather_fetched (or equivalent) and
-   _update_time_label() implementations, the timer that updates the NOW tab, and
-   the signal wiring for receiving worker results.
+Deliverable: list of exact symbols to change (see implementation notes below).
 
-Deliverable: exact function/class/variable names to edit and a one-line note of
-current behavior.
+Task 2 — Worker: add geocoding slot and helper
 
-Task 2 — Worker: include timezone in result
+Objective: Inside src/weatherapp/gui/worker.py add:
 
-Objective: Ensure the Worker always returns timezone when available.
-File: src/weatherapp/gui/worker.py
+- New pyqtSlot:
 
-Steps:
-1. Locate the place timezone_str is extracted (e.g. timezone_str = response.Timezone().decode("utf-8")).
-2. Immediately before assembling/returning/emitting result, add:
+    @pyqtSlot(str)
+    def set_location_query(self, query: str) -> None:
+        # Called from GUI thread (queued). Performs _geocode_location and on
+        # success updates self.coords and calls self.fetch(). On failure emits
+        # fetch_failed("Location not found") or other descriptive message.
 
-   result["timezone"] = timezone_str
+- New helper method:
 
-   - If timezone_str may be None or empty, only add when truthy.
-   - Keep the rest of fetch() unchanged (no refactor).
-3. Run import check to ensure no syntax errors.
+    def _geocode_location(self, query: str) -> tuple[float, float]:
+        # Query Open-Meteo Geocoding API and return (lat, lon) for the first
+        # reasonable match. Raise an exception on network errors or no results.
 
-Task 3 — MainWindow: store active timezone
+Implementation notes for Worker:
+- Use urllib.request or urllib.parse (stdlib) to avoid adding requests.
+- Respect timeout and raise exception on non-200 or parse errors.
+- Update self.coords only after successful geocode and before calling
+  self.fetch() so the normal fetch flow runs unchanged.
+- Ensure fetch() remains a no-argument pyqtSlot() and is reused.
 
-Objective: MainWindow keeps an active ZoneInfo (or None) and updates it when
-new weather arrives.
-File: src/weatherapp/gui/main_window.py
+Task 3 — MainWindow: replace inputs, add signal, update Apply handler
 
-Steps:
-1. In MainWindow.__init__ add:
+Objective: Replace the two QLineEdit fields (self.lat_input, self.lon_input) with
+one QLineEdit named self.location_input and add a new signal:
 
-   self._active_timezone = None
+    request_geocode = pyqtSignal(str)
 
-   and add import: from zoneinfo import ZoneInfo
-   (also add `from datetime import timezone` if needed by _update_time_label).
-2. In on_weather_fetched(data) (or the handler that receives worker results):
+Modify the Apply button handler to:
+1. Read and strip self.location_input.text(). If empty show QMessageBox warning.
+2. If text matches float,float pattern (two comma-separated numbers) parse
+   as lat and lon and run the existing numeric path: validate ranges, call
+   worker.set_coords(lat, lon), update self.coords and emit request_fetch() as
+   before.
+3. Otherwise: emit self.request_geocode.emit(query) and return (do not perform
+   network calls in GUI). Keep the UI responsive.
 
-   tz = data.get("timezone")
-   if tz:
-       try:
-           self._active_timezone = ZoneInfo(tz)
-       except Exception:
-           self._active_timezone = None
+Wire request_geocode to self._worker.set_location_query when the worker is
+available (same style as existing connections). The slot call will be queued to
+the worker thread.
 
-   - Do this before any code that relies on the clock so the next timer tick
-     and any immediate UI update use the new timezone.
-3. After updating _active_timezone, call/ensure _update_time_label() runs so the
-   NOW tab immediately refreshes to the new timezone (many implementations update
-   UI after on_weather_fetched; if not, call it explicitly).
+Task 4 — Worker flow after geocode
 
-Task 4 — Update _update_time_label() to use timezone
+- set_location_query performs geocode (blocking inside worker thread only),
+  updates self.coords, then calls self.fetch() (queued slot call within same
+  thread is fine; since it's invoked from the worker thread directly it's a
+  normal method call). If geocode raises or returns no result, emit
+  fetch_failed("Location not found").
 
-Objective: Use the active timezone for the clock display, fallback to system
-clock when None.
-File: src/weatherapp/gui/main_window.py
+Task 5 — Error handling and validation
 
-Steps:
-1. Replace datetime.now() with:
+- Empty input: GUI warns before emitting anything.
+- Invalid numeric formats: GUI falls back to treating as query; let Worker
+  handle errors and emit fetch_failed.
+- Worker must catch network errors and emit fetch_failed with a friendly
+  message.
 
-   if self._active_timezone:
-       now = datetime.now(timezone.utc).astimezone(self._active_timezone)
-   else:
-       now = datetime.now()
+Task 6 — Smoke & import checks
 
-2. Ensure imports include: from datetime import datetime, timezone
-3. Keep existing formatting code unchanged (12-hour, leading space, AM/PM, date
-   format `%b %d %Y (%a)`).
-4. Ensure the timer that triggers _update_time_label (10s) continues to call
-   this method unchanged.
+- Run: PYTHONPATH=src python -c "import weatherapp" (no new import-time heavy
+  dependencies)
+- Construct Worker and MainWindow objects locally (requires PyQt6 in environment)
+  and verify attributes exist.
 
-Task 5 — Smoke & import checks
+Task 7 — Update agent_control/STATE.md
 
-Objective: Verify no import-time errors and object construction works.
+- Record Version: 5.3, files modified, verification performed, known limitations
+  or required Python versions.
 
-Steps:
-- Run: PYTHONPATH=src python -c "import weatherapp"
-- Run a small construction check:
+Task 8 — Self-review & checklist
 
-PYTHONPATH=src python - <<'PY'
-from weatherapp.gui.worker import Worker
-from weatherapp.gui.main_window import MainWindow
-w = Worker()
-# construct MainWindow without starting event loop
-mw = MainWindow()
-print(mw._active_timezone)
-PY
+- Run through agent_control/CHECKLIST.md and verify all items pass.
 
-Expected: no import errors; mw._active_timezone is None (or a ZoneInfo if the
-worker sets defaults at startup).
+Estimated effort: 45–120 minutes depending on network code debugging.
 
-Task 6 — Update agent_control/STATE.md
+Next action (what I'll do now if you confirm):
 
-Objective: Record Version-5.2 changes, modified files, verification steps, and
-known limitations (e.g., ZoneInfo availability on Python versions prior to 3.9).
+- Implement Worker.set_location_query and _geocode_location in
+  src/weatherapp/gui/worker.py (Task 2).
+- Modify src/weatherapp/gui/main_window.py: replace inputs with
+  self.location_input, add request_geocode signal, and update Apply handler to
+  detect numeric vs query input (Task 3).
 
-Task 7 — Self-review & checklist
-
-- Run through agent_control/CHECKLIST.md manual items (PEP8 ≤100 chars,
-  no blocking GUI thread, only required files changed).
-- Do NOT stage or commit changes (CONSTRAINTS.md).
-
-Testing / Validation (acceptance):
-
-- Unit-ish smoke: construct Worker and MainWindow and simulate a worker result
-  with data={"timezone": "Asia/Tokyo"} calling the on_weather_fetched handler
-  to confirm mw._active_timezone becomes ZoneInfo("Asia/Tokyo") and the
-  formatted time label updates.
-- Manual: run the app locally with PyQt6 and verify: app launch shows default
-  location time, changing coordinates and waiting for fetch updates the time.
-
-Risks & Mitigations:
-
-- Risk: Worker does not reliably include timezone_str. Mitigation: defensive
-  checks in on_weather_fetched; fallback to system time.
-- Risk: timezone string from API may be unknown to ZoneInfo. Mitigation: try/except
-  and fallback to None.
-- Risk: Python versions before 3.9 lack zoneinfo. Mitigation: project targets
-  modern Python; document as limitation in STATE.md if relevant.
-
-Estimated effort: 20–60 minutes.
-
-Next action: Task 1 — inspect the two source files now and report the exact
-symbols and insertion points found. After that I'll implement the edits for
-Task 2–4 and run the smoke checks described above.
+If you'd like me to proceed, confirm and I'll apply the code changes and run
+the smoke/import checks described above.
