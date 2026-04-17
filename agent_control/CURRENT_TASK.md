@@ -1,24 +1,24 @@
 # Current Task
 
-Implement Version 5.3 — City/ZIP Name Geocoding (Non-Breaking Upgrade)
+Implement Version 5.4 — Saved Locations + Persistent Configuration
 
 ## 🎯 Objective
 
-Allow users to enter, instead of raw latitude/longitude (as it is currently implemented):
+Allow users to:
 
-- City name (e.g., Ann Arbor)
-- City + State (e.g., Ann Arbor, MI)
-- ZIP code (e.g., 48108)
-- PIN code (e.g., 713205)
+- Save locations they frequently check
+- Quickly switch between them
+- Automatically reload the last used location at startup
 
-Lat/lon entry must continue to work exactly as in Version 5.2.
+Locations should persist between runs using a small configuration file.
 
-This version introduces geocoding but **does not yet** implement the following features:
+This version introduces **persistent configuration**, but **does not yet implement**:
 
-- Multiple saved locations
-- Persistent configuration
-- Map-based selection
-- UI redesign beyond minimal additions
+- Map selection
+- Weather alerts
+- UI theming
+- Location reordering
+- Cloud sync
 
 ## Requirements
 
@@ -31,138 +31,166 @@ Modify these modules only as needed to meet the goal, including docstrings and c
 `src/weatherapp/gui/worker.py`
 `src/weatherapp/app.py`
 
-## 🧱 Architectural Constraints
+## 🧱 Architectural Principles
 
-- Worker threading model must remain unchanged.
-- `Worker.fetch()` must still accept `(lat, lon)` only.
-- No blocking network calls in GUI thread.
-- Geocoding must be performed in the worker thread.
-- GUI must remain responsive at all times.
-- Existing lat/lon functionality must not regress.
+Maintain the existing design rules:
 
-## 🖥 UI Changes (Minimal + Clean)
+- Worker thread fetches weather
+- GUI thread handles UI only
+- Worker accepts only `(lat, lon)`
+- Geocoding still happens in worker
+- GUI never performs network calls
 
-Modify the existing Location row (above tab bar):
+Configuration logic must be **separate from UI and worker logic**.
 
-Current version 5.2:
+## 🗄 Configuration Storage
 
-```
-Location: [lat] [lon] [Apply]
-```
+Use a simple JSON file.
 
-Version 5.3:
+**Location**
 
-```
-Location: [Location Input Field................] [Apply]
-          (auto-detects city/ZIP or lat,lon)
-```
+Linux example:
 
-**Replace:**
+`~/.config/weatherapp/config.json`
 
-- `self.lat_input`
-- `self.lon_input`
+Fallback if directory does not exist:
 
-**With:**
+`~/.weatherapp_config.json`
 
-- `self.location_input = QLineEdit()`
+Example config
 
-Keep:
-
-- `Apply` button
-
-## 🧠 Input Behavior Rules
-
-When `Apply` is pressed:
-
-1. Trim input.
-
-2. If input matches pattern:
-
-```
-float , float
+```json
+{
+  "last_location": "Ann Arbor, MI",
+  "saved_locations": ["Ann Arbor, MI", "Durgapur, West Bengal", "48104", "731205"],
+  "refresh_interval_minutes": 10
+}
 ```
 
-- → Treat as lat/lon (existing behavior)
+Important:
 
-3. Otherwise:
+Locations are stored as **strings**, not coordinates.
 
-- → Treat as location query string
-- → Send to Worker for geocoding
+Reason:
 
-## 🛰 Geocoding Implementation
+- Allows geocoding updates
+- Keeps config human-readable
+- Avoids stale coordinates
 
-**Add to Worker:**
+## New Module
 
-New slot:
+Create:
+
+```
+config_manager.py
+```
+
+Responsibilities:
+
+```
+load_config()
+save_config()
+add_location()
+remove_location()
+set_last_location()
+```
+
+Example interface:
 
 ```python
-@pyqtSlot(str)
-def set_location_query(self, query: str) -> None:
+class ConfigManager:
+
+    def load(self) -> dict:
+        ...
+
+    def save(self, config: dict) -> None:
+        ...
+
+    def add_location(self, location: str) -> None:
+        ...
+
+    def remove_location(self, location: str) -> None:
+        ...
 ```
 
-New internal helper inside Worker:
+## 🖥 UI Changes
 
-```python
-def _geocode_location(self, query: str) -> tuple[float, float]:
-```
+Add a **Saved Locations dropdown**.
 
-**Requirements:**
-
-- Use Open-Meteo Geocoding API (or equivalent free API)
-- Must:
-  - Return first reasonable match
-  - Extract latitude + longitude
-  - Raise exception on failure
-- Must handle:
-  - No results
-  - Network failure
-  - Invalid input
-
-## 🔁 Flow
-
-When user presses Apply:
-
-**GUI:**
-
-- If lat/lon → call `set_coords(lat, lon)`
-- Else → emit new signal:
-
-  ```
-  request_geocode.emit(query)
-  ```
-
-**Worker:**
-
-1. `_geocode_location(query)`
-2. Update `self.coords`
-3. Emit `weather_fetched` after normal fetch
-
-## 📡 New Signals
-
-In MainWindow:
-
-```python
-request_geocode = pyqtSignal(str)
-```
-
-Connect:
-
-```python
-self.request_geocode.connect(self._worker.set_location_query)
-```
-
-Worker logic:
+Location row becomes:
 
 ```
-set_location_query →
-    geocode →
-    update coords →
-    fetch()
+Location: [Dropdown ▼] [Location Input Field........] [Apply] [Save]
 ```
 
-## 🚨 Error Handling
+### Components
 
-If geocoding fails:
+Add:
+
+```
+self.saved_locations = QComboBox()
+self.save_location_button = QPushButton("Save")
+```
+
+Behavior:
+
+Dropdown selection → fills input field.
+
+## User Interaction Flow
+
+### Selecting a saved location
+
+1. User chooses item from dropdown
+2. Input field updates
+3. Weather fetch triggered
+
+### Saving a location
+
+User flow:
+
+1. Enter location in input
+2. Press **Save**
+
+Behavior:
+
+- Add to config JSON file
+- Update dropdown
+- Avoid duplicates
+
+### Apply button
+
+Same behavior as Version 5.3:
+
+```
+lat,lon → direct fetch
+text → geocode → fetch
+```
+
+Also update:
+
+```
+last_location
+```
+
+## Startup Behavior
+
+On application launch:
+
+1. Load config
+2. Populate dropdown with saved locations
+3. If `last_location` exists:
+   - populate input
+   - automatically fetch weather
+
+If config file does not exist:
+
+- Create default config
+
+## Error Handling
+
+Cases:
+
+**Invalid location**
 
 Worker emits:
 
@@ -170,74 +198,131 @@ Worker emits:
 fetch_failed("Location not found")
 ```
 
-GUI behavior remains unchanged:
+Do not store invalid locations.
 
-- Show QMessageBox
-- Do not crash
-- Do not clear current weather
+**Config corruption**
 
-## 🔍 Validation Rules
+If JSON fails to load:
 
-- Empty input → warning dialog
-- Invalid numeric format → handled by fallback
-- Latitude range: -90 to 90
-- Longitude range: -180 to 180
+1. Backup corrupted file:
 
-## 📦 Deliverables
+   ```
+   config.json.bak
+   ```
 
-Hermes must:
+2. Create fresh config
 
-1. Refactor Location row to single QLineEdit
-2. Add geocoding capability in Worker
-3. Add signal wiring
-4. Preserve all Version-5.2 functionality
-5. Ensure no blocking calls in GUI thread
-6. Ensure no regression in:
-   - Hourly forecast
-   - Daily forecast
-   - Timezone handling
-   - Auto-refresh
+## Internal Data Flow
 
-## 🧪 Manual Test Cases
-
-Test inputs:
+GUI:
 
 ```
-Ann Arbor
-Ann Arbor, MI
-New York
-48104
-42.2509,-83.6694
+Apply clicked
+↓
+check format
+↓
+lat/lon → set_coords
+text → request_geocode
 ```
 
-Failure cases:
+Worker:
 
 ```
-asldkfjalskdfj
-999999999
-(empty)
+set_location_query
+↓
+\_geocode_location
+↓
+update coords
+↓
+fetch()
 ```
 
-## 🛑 Explicit Non-Goals (for 5.3)
+Config updates occur **only in GUI layer**.
+
+Worker must remain stateless regarding config.
+
+## Deliverables
+
+Hermes must implement:
+
+1. `config_manager.py`
+2. Persistent JSON configuration
+3. Saved locations dropdown
+4. Save button
+5. Startup auto-load
+6. Last location restore
+7. Duplicate prevention
+
+No changes allowed to:
+
+- Worker threading model
+- Weather fetch logic
+- Forecast display logic
+
+## Manual Test Cases
+
+### Persistence
+
+Run app:
+
+```
+Enter: Ann Arbor
+Save
+Close app
+Restart
+```
+
+Expected:
+
+```
+Dropdown contains Ann Arbor
+Weather loads automatically
+```
+
+### Duplicate protection
+
+```
+Save "Ann Arbor"
+Save "Ann Arbor"
+```
+
+Expected:
+
+```
+Only one entry
+```
+
+### Invalid location
+
+```
+Save: asldkfjalskdfj
+```
+
+Expected:
+
+```
+Error message
+Not saved
+```
+
+## Non-Goals (Version 5.4)
 
 Do NOT implement:
 
-- Saving multiple locations
-- Dropdown history
-- Config persistence
-- Map UI
-- UI redesign beyond input swap
-- Location label prettification
+- location reordering
+- deleting locations from dropdown
+- map UI
+- weather alerts
+- tray icon
+- dark/light themes
 
-Those belong to 5.4–5.6.
+## Strategic Outcome
 
-## 💡 Design Philosophy for 5.3
+After Version 5.4 the app gains:
 
-This is a **plumbing version**, not a polish version.
+- Real usability
+- Persistence
+- Quick switching
+- Clean config structure
 
-We are expanding capability while:
-
-- Preserving threading integrity
-- Preserving separation of concerns
-- Avoiding UI bloat
-- Avoiding architectural drift
+At this point WeatherApp transitions from **tool → product prototype**.
