@@ -8,25 +8,24 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 5.3
+Version: 5.4
 
 Description:
 
-Version-5.3 adds geocoding so the Location input accepts free-form queries
-("city", "city, state", ZIP/PIN) as well as the existing "lat,lon" format.
-Geocoding runs in the Worker thread using the Open-Meteo geocoding API and
-preserves the threading and fetch flow from previous versions.
-
-Version-5.2 made the NOW tab clock reflect the selected location's local time
-by including the timezone in the worker payload and having MainWindow store and
-use a ZoneInfo instance when formatting the NOW tab time label.
+Version-5.4 adds saved locations and persistent configuration using a small
+JSON file stored under ~/.config/weatherapp/config.json (fallback
+~/.weatherapp_config.json). The GUI exposes a Saved Locations dropdown and a
+Save button; saved locations are strings (not coordinates) and are persisted
+between runs.
 
 ---
 
 ## Implemented Changes
 
 - Worker: `src/weatherapp/gui/worker.py`
-  - Added result["timezone"] inclusion when the API provides a timezone string.
+  - (No behavioral changes) Worker remains stateless regarding config and
+    continues to accept only coordinates. Geocoding remains implemented as in
+    Version-5.3.
 
 - MainWindow: `src/weatherapp/gui/main_window.py`
   - Added `self._active_timezone` to store the current location timezone.
@@ -34,15 +33,22 @@ use a ZoneInfo instance when formatting the NOW tab time label.
     defensively using ZoneInfo.
   - _update_time_label now uses the active timezone when present and falls
     back to system time otherwise.
+  - Added a QComboBox `self.saved_locations` and a QPushButton `self.save_location_button`.
+  - ConfigManager is instantiated when available and the dropdown is populated
+    on startup. Selecting a saved location fills the input and triggers a
+    geocode/fetch. The Save button stores the current input string (avoids
+    duplicates) and refreshes the dropdown.
+
+- New module: `src/weatherapp/config_manager.py`
+  - Implements ConfigManager with load/save/add_location/remove_location/set_last_location
+    and safe file handling (backup on corruption).
 
 ---
 
 ## Files Modified
 
-- `src/weatherapp/gui/worker.py`
+- `src/weatherapp/config_manager.py` (new)
 - `src/weatherapp/gui/main_window.py`
-- `agent_control/PLAN.md` (updated earlier to describe Version-5.2)
-- `agent_control/STATE.md` (this file)
 
 ---
 
@@ -50,28 +56,27 @@ use a ZoneInfo instance when formatting the NOW tab time label.
 
 - Import check: `PYTHONPATH=src python -c "import weatherapp"` — succeeded in
   this environment (no import-time errors unrelated to missing PyQt6).
-- Constructed Worker and MainWindow objects would require PyQt6; in this
-  headless environment PyQt6 is not installed so full construction was not
-  executed here. Local smoke tests should be run with PyQt6 available.
+- Basic unit checks: module imports and new ConfigManager instantiation
+  attempted at runtime; full GUI runtime checks require PyQt6 and a display
+  server and should be performed locally by the developer.
 
 ---
 
 ## Known Limitations
 
-- ZoneInfo requires Python 3.9+. If running on older Python versions, the
-  behavior falls back to system time; document this in release notes if needed.
 - Full GUI runtime validation requires PyQt6 and a display server; perform
   manual verification locally:
   - Run: `PYTHONPATH=src python -m weatherapp.app`
-  - Verify that changing coordinates and fetching updates the NOW tab clock.
+  - Verify saved locations appear in the dropdown, Save persists to config,
+    and last_location is restored.
+- Config file write failures (permissions, readonly home) are swallowed to
+  avoid crashing the GUI; failures are best detected by checking the file
+  on disk after saving.
 
 ---
 
 ## Next Steps
 
-1. Run the app locally with PyQt6 installed and verify the NOW tab time updates
-   to the location's timezone on app launch, after coordinate changes, after
-   refresh, and on timer ticks.
-2. If desired, add unit/smoke tests that call on_weather_fetched with a sample
-   payload containing `{"timezone": "Asia/Tokyo"}` and verify the label text
-   includes JST-equivalent time.
+1. Run the app locally with PyQt6 installed and verify Save/Load flows and
+   startup restore of last_location.
+2. Add tests for ConfigManager load/save behavior if desired.
