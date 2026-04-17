@@ -123,7 +123,7 @@ Keep Markdown files readable and focused.
 
 ## Version Control
 
-Do not stage or commit changes.
+**Do not stage or commit changes.**
 
 ---
 
