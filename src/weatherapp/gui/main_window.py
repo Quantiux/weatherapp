@@ -654,11 +654,11 @@ class MainWindow(QWidget):
                 if text:
                     self.location_input.setText(text)
                     # Trigger immediate apply behavior
-                    self.request_geocode.emit(text)
+                    self.apply_location_button.click()
             except Exception:
                 pass
 
-        self.saved_locations.currentIndexChanged.connect(_on_saved_selection)
+        self.saved_locations.activated.connect(_on_saved_selection)
 
         # Request an initial fetch to populate UI and set initial time
         self._update_time_label()
