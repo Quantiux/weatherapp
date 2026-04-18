@@ -1,29 +1,28 @@
-# 📝 Version 5.7 — Custom Default Location
+# Version 5.8 — UI Synchronization & Startup Alignment
 
 ## 🎯 Objective
 
-Allow the user to designate a specific location as their "Home" or "Startup" location, overriding the default behavior.
+Ensure all location-aware UI elements (Search Input and Saved Locations Dropdown) are perfectly synchronized to the same startup location.
 
 ## 🛠 Requirements
 
-1. **Configuration Schema Update**
-   - Add a `default_location` key to `config.json`.
-   - **Logic Priority at Startup:**
-     1. `default_location` (User-set preference).
-     2. `last_location` (Most recent successful search).
-     3. `"New York"` (Hardcoded fallback).
+1. **Centralize Startup Location Selection** (`src/weatherapp/gui/main_window.py`):
+   In the `__init__` method, create a single logic block to determine the `startup_location`:
+   1. Check `default_location` from config.
+   2. If none, check `last_location` from config.
+   3. If none, fall back to `"New York"`.
 
-2. **Expand `ConfigManager`** (`src/weatherapp/config_manager.py`)
-   - Add `set_default_location(location_name: str)`: Saves the string to the `default_location` key.
-   - Add `get_default_location() -> Optional[str]`: Retrieves the value.
+2. **Synchronize UI Widgets:**
+   Apply the `startup_location` to both widgets:
+   - `self.location_input.setText(startup_location)`
+   - ``self.saved_locations.setCurrentText(startup_location)`
+     - Note: If the startup location is not currently in the "Saved" list, the dropdown should ideally show a placeholder or remain blank, but the Search Bar must remain primary.
 
-3. **UI implementation** (`src/weatherapp/gui/main_window.py`)
-   - **"Set Default" Button:** Add a button labeled "Set Default" (or a ⭐ icon) next to the "Save" button in the "Saved" section.
-   - **Functionality:** Clicking this button takes the current text in the location input and saves it as the `default_location` in the config.
-   - **Visual Feedback:** Show a brief status message (e.g., "Default set to London") in a `QStatusBar` or a small temporary label.
+3. **Update Fetch Logic:**
+   Ensure the `self.request_fetch.emit()` signal is only called after both UI elements have been set, ensuring the UI reflects exactly what is being fetched.
 
 ## 🧪 Success Criteria
 
-- User searches "London", clicks "Set Default", and closes the app.
-- User then searches "Tokyo" (which updates `last_location`).
-- Upon restart, the app loads **London** because it is the explicit default.
+1. On startup, the Search Bar and the "Saved" Dropdown show the exact same city name.
+2. If the user has a "Default" set (e.g., Ann Arbor), both boxes show "Ann Arbor" immediately upon launch.
+3. The initial weather fetch matches the city displayed in both boxes.
