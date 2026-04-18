@@ -504,6 +504,8 @@ class MainWindow(QWidget):
         self.saved_locations = QComboBox()
         self.saved_locations.setFixedWidth(180)
         self.save_location_button = QPushButton("Save")
+        # "Set Default" button per Version-5.7: minimal placement next to Save
+        self.set_default_button = QPushButton("Set Default")
 
         self.apply_location_button = QPushButton("Apply")
 
@@ -512,6 +514,7 @@ class MainWindow(QWidget):
         loc_row.addWidget(self.location_input)
         loc_row.addWidget(self.apply_location_button)
         loc_row.addWidget(self.save_location_button)
+        loc_row.addWidget(self.set_default_button)
 
         # Insert location row above the tabs
         main_layout.addLayout(loc_row)
@@ -638,6 +641,25 @@ class MainWindow(QWidget):
                 QMessageBox.warning(self, "Save Failed", "Failed to save location.")
 
         self.save_location_button.clicked.connect(_save_location)
+        # Wire Set Default button: save current location_input text as default_location
+        def _set_default() -> None:
+            text = self.location_input.text().strip()
+            if not text:
+                # Non-blocking brief feedback via status bar would be nicer, but
+                # Keep parity with other simple dialogs used throughout the app.
+                QMessageBox.warning(self, "Invalid Input", "Location input is required to set default.")
+                return
+            if self._config is None:
+                QMessageBox.warning(self, "Config Unavailable", "Configuration manager not available; cannot set default.")
+                return
+            try:
+                self._config.set_default_location(text)
+                # Provide brief visual feedback using QStatusBar-like message via QMessageBox.information for simplicity
+                QMessageBox.information(self, "Default Set", f"Default location set to {text}")
+            except Exception:
+                QMessageBox.warning(self, "Set Default Failed", "Failed to set default location.")
+
+        self.set_default_button.clicked.connect(_set_default)
 
         # Populate saved locations dropdown helper
         def _on_saved_selection(index: int) -> None:
@@ -659,14 +681,25 @@ class MainWindow(QWidget):
         try:
             self._populate_saved_locations()
             if self._config is not None:
-                last = self._config.get_last_location()
-                if last:
-                    self.location_input.setText(last)
-                    # Emit geocode so the worker will fetch for last_location
-                    self.request_geocode.emit(last)
+                # Startup priority: default_location -> last_location -> hardcoded fallback
+                default_loc = None
+                try:
+                    default_loc = self._config.get_default_location()
+                except Exception:
+                    default_loc = None
+                if default_loc:
+                    self.location_input.setText(default_loc)
+                    # Emit geocode so the worker will fetch for default_location
+                    self.request_geocode.emit(default_loc)
                 else:
-                    # No last location: perform default coords fetch
-                    self.request_fetch.emit()
+                    last = self._config.get_last_location()
+                    if last:
+                        self.location_input.setText(last)
+                        # Emit geocode so the worker will fetch for last_location
+                        self.request_geocode.emit(last)
+                    else:
+                        # No last location: perform default coords fetch
+                        self.request_fetch.emit()
         except Exception:
             # Fall back to default behavior if config lookup fails
             self.request_fetch.emit()

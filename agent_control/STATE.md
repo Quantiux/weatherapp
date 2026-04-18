@@ -8,63 +8,50 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 5.6
+Version: 5.7
 
 Description:
 
-Version-5.4 adds saved locations and persistent configuration using a small
-JSON file stored under ~/.config/weatherapp/config.json (fallback
-~/.weatherapp_config.json). The GUI exposes a Saved Locations dropdown and a
-Save button; saved locations are strings (not coordinates) and are persisted
-between runs.
+Version-5.7 adds the ability for users to set a persistent "default_location" which the app will prefer at startup over last_location and the hardcoded fallback.
 
 ---
 
 ## Implemented Changes
 
+- ConfigManager: `src/weatherapp/config_manager.py`
+  - Added `default_location` to the JSON schema with a default of null.
+  - Added `set_default_location(location: str)` and `get_default_location() -> Optional[str]` methods. Methods persist changes using existing save() behavior and follow existing defensive error handling patterns.
+
 - MainWindow: `src/weatherapp/gui/main_window.py`
-  - Updated initialization of `self.location_input` to use a human-readable default: "New York".
-  - Preserve existing logic that later overrides this with `ConfigManager.get_last_location()` if present; no changes to Apply/Save behavior or worker wiring.
-
-- Worker: no changes required. Existing `set_location_query` and geocoding behavior remain unchanged.
-
-- ConfigManager / Saved locations: unchanged. The startup logic still prefers `last_location` when available and will override the new default.
-
+  - Added a "Set Default" button in the Saved section next to the Save button. Clicking it saves the current location input to the `default_location` key in the config and shows a brief informational dialog.
+  - Startup priority adjusted: the app now prefers `default_location` -> `last_location` -> hardcoded fallback ("New York"). If default_location is present it is used to set the location input and the worker is requested to geocode and fetch for it.
 
 ---
 
 ## Files Modified
 
-- `src/weatherapp/config_manager.py` (new)
+- `src/weatherapp/config_manager.py`
 - `src/weatherapp/gui/main_window.py`
 
 ---
 
 ## Validation Performed
 
-- Import check: `PYTHONPATH=src python -c "import weatherapp"` — succeeded in
-  this environment (no import-time errors unrelated to missing PyQt6).
-- Basic unit checks: module imports and new ConfigManager instantiation
-  attempted at runtime; full GUI runtime checks require PyQt6 and a display
-  server and should be performed locally by the developer.
+- Import check: `PYTHONPATH=src python -c "import weatherapp"` — succeeded in this environment (no import-time errors unrelated to missing PyQt6).
+- Performed static inspections of MainWindow startup path and ConfigManager API. Full GUI runtime validation requires PyQt6 and a display server and should be performed locally by the developer.
 
 ---
 
 ## Known Limitations
 
-- Full GUI runtime validation requires PyQt6 and a display server; perform
-  manual verification locally:
+- Full GUI runtime validation requires PyQt6 and a display server; perform manual verification locally:
   - Run: `PYTHONPATH=src python -m weatherapp.app`
-  - Verify saved locations appear in the dropdown, Save persists to config,
-    and last_location is restored.
-- Config file write failures (permissions, readonly home) are swallowed to
-  avoid crashing the GUI; failures are best detected by checking the file
-  on disk after saving.
+  - Verify Set Default stores the value in config.json, saved locations appear in the dropdown, Save persists to config, and default_location takes precedence on restart.
+- Config file write failures (permissions, readonly home) are swallowed to avoid crashing the GUI; failures are best detected by checking the file on disk after saving.
 
 ---
 
 ## Next Steps
 
-1. Run the app locally with PyQt6 installed and verify Save/Load flows and
-   startup restore of last_location.
-2. Add tests for ConfigManager load/save behavior if desired.
+1. Run the app locally with PyQt6 installed and verify Set Default flow: set default to London, search Tokyo (updates last_location), restart app — London should be loaded.
+2. Optionally add unit tests for ConfigManager load/save/default behavior.

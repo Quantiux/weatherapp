@@ -18,6 +18,7 @@ DEFAULT_CONFIG = {
     "last_location": None,
     "saved_locations": [],
     "refresh_interval_minutes": 10,
+    "default_location": None,
 }
 
 
@@ -131,8 +132,20 @@ class ConfigManager:
         self.data["last_location"] = (location or "").strip()
         self.save()
 
+    def set_default_location(self, location: str) -> None:
+        """Set a persistent default location string that the app will prefer on startup.
+
+        The value is stored under the "default_location" key in the config JSON.
+        """
+        self.data["default_location"] = (location or "").strip()
+        self.save()
+
     def get_saved_locations(self) -> List[str]:
         return list(self.data.get("saved_locations") or [])
 
     def get_last_location(self) -> Optional[str]:
         return self.data.get("last_location")
+
+    def get_default_location(self) -> Optional[str]:
+        """Return the configured default location or None if not set."""
+        return self.data.get("default_location")
