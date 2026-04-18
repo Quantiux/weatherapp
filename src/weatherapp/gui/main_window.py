@@ -509,12 +509,6 @@ class MainWindow(QWidget):
 
         self.apply_location_button = QPushButton("Apply")
 
-        # Initialize with defaults for the free-form location input
-        try:
-            self.location_input.setText(f"{DEFAULT_COORDS[0]:.6f},{DEFAULT_COORDS[1]:.6f}")
-        except Exception:
-            self.location_input.setText("0.000000,0.000000")
-
         loc_row.addWidget(loc_label)
         loc_row.addWidget(self.saved_locations)
         loc_row.addWidget(self.location_input)
