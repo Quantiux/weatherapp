@@ -497,10 +497,8 @@ class MainWindow(QWidget):
         self.location_input.setFixedWidth(220)
         # Note: we don't set the validator globally because input may be non-numeric
         # Initialize with defaults shown as "lat,lon" to preserve user expectations
-        try:
-            self.location_input.setText(f"{DEFAULT_COORDS[0]:.6f},{DEFAULT_COORDS[1]:.6f}")
-        except Exception:
-            self.location_input.setText("0.000000,0.000000")
+        # Initialize the location input with a human-readable default; last_location (if present) will override later.
+        self.location_input.setText("New York")
 
         # Saved locations dropdown and Save button (Version-5.4)
         self.saved_locations = QComboBox()

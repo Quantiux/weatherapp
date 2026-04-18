@@ -8,7 +8,7 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 5.5
+Version: 5.6
 
 Description:
 
@@ -22,23 +22,13 @@ between runs.
 
 ## Implemented Changes
 
-- Worker: `src/weatherapp/gui/worker.py`
-  - Inspected: Worker already implements `set_location_query` and `_geocode_location`.
-  - The geocoding implementation uses urllib.parse.urlencode on the full user input
-    (preserving commas and state qualifiers) and requests Open-Meteo with `count=1`,
-    selecting the first returned result. Errors raise a RuntimeError and the worker
-    emits `fetch_failed` with a friendly message.
-  - No code changes were required in the Worker for CURRENT_TASK.md.
-
 - MainWindow: `src/weatherapp/gui/main_window.py`
-  - Confirms `self.location_input`, `request_geocode` signal, and Apply/save handlers
-    are implemented per Version-5.3 expectations.
-  - The Apply handler parses numeric "lat,lon" inputs and otherwise emits
-    `request_geocode` (queued to the worker thread), keeping network I/O out of the GUI.
+  - Updated initialization of `self.location_input` to use a human-readable default: "New York".
+  - Preserve existing logic that later overrides this with `ConfigManager.get_last_location()` if present; no changes to Apply/Save behavior or worker wiring.
 
-- ConfigManager / Saved locations:
-  - ConfigManager is available and the saved locations dropdown is populated on startup
-    when the config manager is present. The Save button stores free-form location strings.
+- Worker: no changes required. Existing `set_location_query` and geocoding behavior remain unchanged.
+
+- ConfigManager / Saved locations: unchanged. The startup logic still prefers `last_location` when available and will override the new default.
 
 
 ---

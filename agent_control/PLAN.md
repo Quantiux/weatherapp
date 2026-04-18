@@ -2,7 +2,7 @@
 
 Goal:
 
-Fix geocoding for free-form location queries (e.g. "Miami, FL", "Kolkata, West Bengal") by ensuring the worker receives the full, URL-encoded query, performs geocoding in the worker thread, updates coords, and triggers the existing fetch flow. Keep GUI unchanged except for emitting a queued geocode request. Preserve threading, avoid new dependencies, and keep changes minimal.
+Implement Version 5.6 — Initial Search Polish: On startup, the location input should display a human-readable name rather than raw coordinates. Follow CURRENT_TASK.md which requires preferring `last_location` from ConfigManager or falling back to "New York". Keep changes minimal: only modify initialization logic in src/weatherapp/gui/main_window.py.
 
 Files to inspect/modify:
 
