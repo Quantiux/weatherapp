@@ -8,7 +8,7 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 5.4
+Version: 5.5
 
 Description:
 
@@ -23,25 +23,23 @@ between runs.
 ## Implemented Changes
 
 - Worker: `src/weatherapp/gui/worker.py`
-  - (No behavioral changes) Worker remains stateless regarding config and
-    continues to accept only coordinates. Geocoding remains implemented as in
-    Version-5.3.
+  - Inspected: Worker already implements `set_location_query` and `_geocode_location`.
+  - The geocoding implementation uses urllib.parse.urlencode on the full user input
+    (preserving commas and state qualifiers) and requests Open-Meteo with `count=1`,
+    selecting the first returned result. Errors raise a RuntimeError and the worker
+    emits `fetch_failed` with a friendly message.
+  - No code changes were required in the Worker for CURRENT_TASK.md.
 
 - MainWindow: `src/weatherapp/gui/main_window.py`
-  - Added `self._active_timezone` to store the current location timezone.
-  - on_weather_fetched now updates `self._active_timezone` from the payload
-    defensively using ZoneInfo.
-  - _update_time_label now uses the active timezone when present and falls
-    back to system time otherwise.
-  - Added a QComboBox `self.saved_locations` and a QPushButton `self.save_location_button`.
-  - ConfigManager is instantiated when available and the dropdown is populated
-    on startup. Selecting a saved location fills the input and triggers a
-    geocode/fetch. The Save button stores the current input string (avoids
-    duplicates) and refreshes the dropdown.
+  - Confirms `self.location_input`, `request_geocode` signal, and Apply/save handlers
+    are implemented per Version-5.3 expectations.
+  - The Apply handler parses numeric "lat,lon" inputs and otherwise emits
+    `request_geocode` (queued to the worker thread), keeping network I/O out of the GUI.
 
-- New module: `src/weatherapp/config_manager.py`
-  - Implements ConfigManager with load/save/add_location/remove_location/set_last_location
-    and safe file handling (backup on corruption).
+- ConfigManager / Saved locations:
+  - ConfigManager is available and the saved locations dropdown is populated on startup
+    when the config manager is present. The Save button stores free-form location strings.
+
 
 ---
 
