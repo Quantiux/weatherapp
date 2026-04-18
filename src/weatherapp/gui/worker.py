@@ -88,8 +88,8 @@ class Worker(QObject):
     def _geocode_location(self, query: str) -> tuple[float, float]:
         """Resolve a free-form location query to (lat, lon) using Open-Meteo geocoding.
 
-        Returns the first reasonable match as (latitude, longitude). Raises an
-        exception on network errors or if no suitable result is found.
+        Handles comma-separated queries (e.g., 'Miami, US') by splitting the city
+        and country code to improve API matching accuracy.
         """
         # Local imports to avoid adding network deps at module import time
         import urllib.parse
@@ -97,7 +97,21 @@ class Worker(QObject):
         import json
 
         base = "https://geocoding-api.open-meteo.com/v1/search"
-        params = {"name": query, "count": 1, "language": "en"}
+
+        # Split query into parts to detect city/country code patterns
+        parts = [p.strip() for p in query.split(",")]
+        params = {"count": 5, "language": "en"}
+        if len(parts) >= 2:
+            # If second part is exactly 2 characters, treat it as an ISO country code (e.g. US, IN)
+            if len(parts[1]) == 2:
+                params["name"] = parts[0]
+                params["country_code"] = parts[1].upper()
+            else:
+                # Fallback to literal name search for non-ISO descriptors
+                params["name"] = query
+        else:
+            params["name"] = query
+
         url = base + "?" + urllib.parse.urlencode(params)
         req = urllib.request.Request(url, headers={"User-Agent": "WeatherApp-Agent/1.0"})
         try:
