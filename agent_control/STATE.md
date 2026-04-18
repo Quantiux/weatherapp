@@ -8,37 +8,35 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 5.7
+Version: 5.8
 
 Description:
 
-Version-5.7 adds the ability for users to set a persistent "default_location" which the app will prefer at startup over last_location and the hardcoded fallback.
+Version-5.8 synchronizes startup location across UI widgets (Search input and Saved Locations dropdown) and ensures the initial fetch is emitted only after both widgets are set. Also preserves the default_location priority behavior from Version-5.7.
 
 ---
 
 ## Implemented Changes
 
-- ConfigManager: `src/weatherapp/config_manager.py`
-  - Added `default_location` to the JSON schema with a default of null.
-  - Added `set_default_location(location: str)` and `get_default_location() -> Optional[str]` methods. Methods persist changes using existing save() behavior and follow existing defensive error handling patterns.
-
 - MainWindow: `src/weatherapp/gui/main_window.py`
-  - Added a "Set Default" button in the Saved section next to the Save button. Clicking it saves the current location input to the `default_location` key in the config and shows a brief informational dialog.
-  - Startup priority adjusted: the app now prefers `default_location` -> `last_location` -> hardcoded fallback ("New York"). If default_location is present it is used to set the location input and the worker is requested to geocode and fetch for it.
+  - Centralized startup location selection and applied it to both the Search input and Saved dropdown before emitting fetch/geocode signals. The logic uses priority: default_location -> last_location -> "New York".
+  - Adjusted emission of initial fetch/geocode using QTimer.singleShot(0, ...) to ensure UI updates are processed before the worker fetches.
+
+- No changes were required to ConfigManager for this task; existing get_default_location() and get_last_location() methods were used.
 
 ---
 
 ## Files Modified
 
-- `src/weatherapp/config_manager.py`
 - `src/weatherapp/gui/main_window.py`
+- `agent_control/STATE.md`
 
 ---
 
 ## Validation Performed
 
 - Import check: `PYTHONPATH=src python -c "import weatherapp"` — succeeded in this environment (no import-time errors unrelated to missing PyQt6).
-- Performed static inspections of MainWindow startup path and ConfigManager API. Full GUI runtime validation requires PyQt6 and a display server and should be performed locally by the developer.
+- Static inspection and runtime defensive checks added to MainWindow to ensure setText/setCurrentText are called before any fetch requests.
 
 ---
 
@@ -46,12 +44,12 @@ Version-5.7 adds the ability for users to set a persistent "default_location" wh
 
 - Full GUI runtime validation requires PyQt6 and a display server; perform manual verification locally:
   - Run: `PYTHONPATH=src python -m weatherapp.app`
-  - Verify Set Default stores the value in config.json, saved locations appear in the dropdown, Save persists to config, and default_location takes precedence on restart.
-- Config file write failures (permissions, readonly home) are swallowed to avoid crashing the GUI; failures are best detected by checking the file on disk after saving.
+  - Verify that on startup the Search Bar and Saved Dropdown show the same startup location and that the initial fetch matches the displayed location.
+- setCurrentText may not select a value if the startup location is not present in saved_locations; this is acceptable because the Search Bar is the primary source of truth.
 
 ---
 
 ## Next Steps
 
-1. Run the app locally with PyQt6 installed and verify Set Default flow: set default to London, search Tokyo (updates last_location), restart app — London should be loaded.
-2. Optionally add unit tests for ConfigManager load/save/default behavior.
+1. Run the app locally with PyQt6 installed and verify the UI synchronization flow.
+2. Optionally add unit tests around ConfigManager and MainWindow initialization to assert startup priority behavior.

@@ -15,7 +15,7 @@ Ensure all location-aware UI elements (Search Input and Saved Locations Dropdown
 2. **Synchronize UI Widgets:**
    Apply the `startup_location` to both widgets:
    - `self.location_input.setText(startup_location)`
-   - ``self.saved_locations.setCurrentText(startup_location)`
+   - `self.saved_locations.setCurrentText(startup_location)`
      - Note: If the startup location is not currently in the "Saved" list, the dropdown should ideally show a placeholder or remain blank, but the Search Bar must remain primary.
 
 3. **Update Fetch Logic:**

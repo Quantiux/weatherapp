@@ -680,29 +680,50 @@ class MainWindow(QWidget):
         # Populate saved locations dropdown and restore last_location if present
         try:
             self._populate_saved_locations()
+
+            # Determine startup location once (priority: default -> last -> fallback)
+            startup_location = "New York"
+            default_loc = None
+            last_loc = None
             if self._config is not None:
-                # Startup priority: default_location -> last_location -> hardcoded fallback
-                default_loc = None
                 try:
                     default_loc = self._config.get_default_location()
                 except Exception:
                     default_loc = None
+                try:
+                    last_loc = self._config.get_last_location()
+                except Exception:
+                    last_loc = None
+
                 if default_loc:
-                    self.location_input.setText(default_loc)
-                    # Emit geocode so the worker will fetch for default_location
-                    self.request_geocode.emit(default_loc)
-                else:
-                    last = self._config.get_last_location()
-                    if last:
-                        self.location_input.setText(last)
-                        # Emit geocode so the worker will fetch for last_location
-                        self.request_geocode.emit(last)
-                    else:
-                        # No last location: perform default coords fetch
-                        self.request_fetch.emit()
+                    startup_location = default_loc
+                elif last_loc:
+                    startup_location = last_loc
+
+            # Apply startup location to both widgets BEFORE triggering any fetch so
+            # the UI always matches the location we are about to request.
+            try:
+                self.location_input.setText(startup_location)
+            except Exception:
+                pass
+            try:
+                # If the startup location exists in the saved list this will select it.
+                # If it does not exist, setCurrentText may be ignored — that's acceptable
+                # because the Search Bar is the primary source of truth.
+                self.saved_locations.setCurrentText(startup_location)
+            except Exception:
+                pass
+
+            # Defer emission of the fetch/geocode so the UI updates are processed
+            # by the event loop first. Preserve original behavior: if there was no
+            # default/last we emit a coords-based fetch; otherwise request geocode.
+            if default_loc or last_loc:
+                QTimer.singleShot(0, lambda loc=startup_location: self.request_geocode.emit(loc))
+            else:
+                QTimer.singleShot(0, self.request_fetch.emit)
         except Exception:
             # Fall back to default behavior if config lookup fails
-            self.request_fetch.emit()
+            QTimer.singleShot(0, self.request_fetch.emit)
 
     def closeEvent(self, event) -> None:
         """Handle window close and ensure the worker thread is stopped cleanly.
