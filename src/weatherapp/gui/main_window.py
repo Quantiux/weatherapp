@@ -547,8 +547,10 @@ class MainWindow(QWidget):
 
         # Enable context menu on the saved locations combobox and wire handler
         try:
-            self.saved_locations.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-            self.saved_locations.customContextMenuRequested.connect(self.on_saved_context_menu)
+            # Enable context menu on the dropdown popup list itself
+            view = self.saved_locations.view()
+            view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            view.customContextMenuRequested.connect(self.on_saved_context_menu)
         except Exception:
             # If context menus are not available, continue without them
             pass
@@ -730,85 +732,88 @@ class MainWindow(QWidget):
         super().closeEvent(event)
 
     def on_saved_context_menu(self, pos) -> None:
-        """Show a context menu for saved_locations offering Set Default, Delete, Clear All."""
+        """Context menu for saved locations dropdown (operates on clicked row)."""
+
+        view = self.saved_locations.view()
+
+        index = view.indexAt(pos)
+        if not index.isValid():
+            return
+
+        view.setCurrentIndex(index)
+        text = index.data()
+
+        menu = QMenu(self)
+
+        set_default_action = menu.addAction("Set Default")
+        delete_action = menu.addAction("Delete")
+        menu.addSeparator()
+        clear_all_action = menu.addAction("Clear All")
+
+        action = menu.exec(view.viewport().mapToGlobal(pos))
+
+        if action == set_default_action:
+            self._set_default_location(text)
+
+        elif action == delete_action:
+            self._delete_location(text)
+
+        elif action == clear_all_action:
+            self._clear_all_locations()
+
+    def _delete_location(self, text: str) -> None:
+        """Delete a saved location."""
+
+        reply = QMessageBox.question(
+            self,
+            "Confirm Delete",
+            "Are you sure you want to delete this location? This action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
         try:
-            menu = QMenu(self)
-            set_default_action = menu.addAction("Set Default")
-            delete_action = menu.addAction("Delete")
-            clear_action = menu.addAction("Clear All")
-            action = menu.exec(self.saved_locations.mapToGlobal(pos))
-            if action is None:
-                return
-            # Resolve current text: prefer the combobox selection, fallback to input
-            current = self.saved_locations.currentText() or self.location_input.text().strip()
-            if action == set_default_action:
-                if not current:
-                    QMessageBox.warning(self, "Invalid Selection", "No location selected to set as default.")
-                    return
-                if self._config is None:
-                    QMessageBox.warning(self, "Config Unavailable", "Configuration manager not available; cannot set default.")
-                    return
-                try:
-                    self._config.set_default_location(current)
-                    QMessageBox.information(self, "Default Set", f"Default location set to {current}")
-                except Exception:
-                    QMessageBox.warning(self, "Set Default Failed", "Failed to set default location.")
-            elif action == delete_action:
-                if not current:
-                    QMessageBox.information(self, "No Selection", "No saved location is selected to delete.")
-                    return
-                if self._config is None:
-                    QMessageBox.warning(self, "Config Unavailable", "Configuration manager not available; cannot delete location.")
-                    return
-                ans = QMessageBox.question(
-                    self,
-                    "Confirm Delete",
-                    "Are you sure you want to delete this location? This action cannot be undone.",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                )
-                if ans != QMessageBox.StandardButton.Yes:
-                    return
-                try:
-                    self._config.remove_location(current)
-                    self._populate_saved_locations()
-                    if self.saved_locations.count() > 0:
-                        try:
-                            self.saved_locations.setCurrentIndex(0)
-                            self.location_input.setText(self.saved_locations.currentText())
-                            self.apply_location_button.click()
-                        except Exception:
-                            pass
-                    else:
-                        try:
-                            self.location_input.clear()
-                        except Exception:
-                            pass
-                except Exception:
-                    QMessageBox.warning(self, "Delete Failed", "Failed to delete location.")
-            elif action == clear_action:
-                if self._config is None:
-                    QMessageBox.warning(self, "Config Unavailable", "Configuration manager not available; cannot clear locations.")
-                    return
-                ans = QMessageBox.warning(
-                    self,
-                    "Confirm Clear All",
-                    "This will delete all saved locations. This action cannot be undone. Proceed?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                )
-                if ans != QMessageBox.StandardButton.Yes:
-                    return
-                try:
-                    self._config.clear_all_locations()
-                    self._populate_saved_locations()
-                    try:
-                        self.location_input.clear()
-                    except Exception:
-                        pass
-                except Exception:
-                    QMessageBox.warning(self, "Clear Failed", "Failed to clear saved locations.")
+            if self._config:
+                self._config.remove_location(text)
+
+            self._populate_saved_locations()
+
         except Exception:
-            # Non-fatal — context menu failures should not crash the app
-            pass
+            QMessageBox.warning(self, "Delete Failed", "Unable to delete location.")
+
+    def _set_default_location(self, text: str) -> None:
+        """Set a saved location as default."""
+
+        try:
+            if self._config:
+                self._config.set_default_location(text)
+
+        except Exception:
+            QMessageBox.warning(self, "Error", "Unable to set default location.")
+
+    def _clear_all_locations(self) -> None:
+        """Remove all saved locations."""
+
+        reply = QMessageBox.question(
+            self,
+            "Confirm Clear",
+            "Remove ALL saved locations?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            if self._config:
+                self._config.clear_locations()
+
+            self._populate_saved_locations()
+
+        except Exception:
+            QMessageBox.warning(self, "Error", "Unable to clear locations.")
 
     def on_refresh_clicked(self) -> None:
         """Emit a queued fetch request to the Worker.
