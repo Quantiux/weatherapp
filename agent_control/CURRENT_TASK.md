@@ -2,12 +2,18 @@
 
 ## 🎯 Objective
 
-Relocate **Set Default**, **Delete**, and **Clear All** actions to a right-click context menu on the "Saved Locations" dropdown. This leaves the "Save" button as the only remaining physical button for the saved list, optimizing horizontal space.
+Relocate **Set Default**, **Delete**, and **Clear All** actions to a right-click context menu on the `saved_locations` dropdown. This leaves the "Save" button as the only primary physical action, maximizing horizontal space and fixing the startup widget sync.
 
 ## 🛠 Implementation Steps
 
 1.  **UI Refactoring** (`src/weatherapp/gui/main_window.py`)
-    - **Remove Buttons:** Delete the code creating `self.set_default_button`, `self.delete_location_button`, and `self.clear_locations_button`.
+    - **Remove Buttons:** Delete the instances of `self.set_default_button`, `self.delete_location_button`, and `self.clear_locations_button`.
+
+    - **Refactor Layout:** Simplify the `saved_layout` to include only:
+
+    ```
+    [Label: "Saved:"] [Dropdown (Stretch)] [Save Button]
+    ```
 
     - **Enable Context Menu:**
 
@@ -16,46 +22,20 @@ Relocate **Set Default**, **Delete**, and **Clear All** actions to a right-click
     self.saved_locations.customContextMenuRequested.connect(self.on_saved_context_menu)
     ```
 
-    - **Update Layout:** The `saved_layout` will now only contain:
+2.  **Context Menu Implementation**
+    Add the `on_saved_context_menu` handler to provide management options:
+    - ⭐ **Set Default:** Configures the currently selected city as the `default_location`.
+    - 🗑️ **Delete:** Removes the current city from the list (with confirmation).
+    - 🧹 **Clear All:** Wipes the entire saved history (with confirmation).
 
-    ```
-    [Label: "Saved:"] [Dropdown (Stretch)] [Save Button]
-    ```
-
-2.  **Implement the Context Menu Handler**
-    The menu will now offer three distinct management actions:
-
-    ```python
-    def on_saved_context_menu(self, pos):
-        """Show a context menu with management actions for the saved list."""
-        menu = QMenu(self)
-        current_item = self.saved_locations.currentText()
-
-        if current_item:
-            # Action 1: Set as Default
-            default_action = menu.addAction(f"Set '{current_item}' as Default")
-            default_action.triggered.connect(self.on_set_default_clicked)
-
-            # Action 2: Delete
-            del_action = menu.addAction(f"Delete '{current_item}'")
-            del_action.triggered.connect(self.on_delete_clicked)
-
-            menu.addSeparator()
-
-        # Action 3: Clear All
-        clear_action = menu.addAction("Clear All Saved Locations")
-        clear_action.triggered.connect(self.on_clear_clicked)
-
-        menu.exec(self.saved_locations.mapToGlobal(pos))
-    ```
-
-3.  **Logic Sync**
-    - Ensure `on_set_default_clicked` now reads the city from `self.saved_locations.currentText()` (or the input box, since they are synced) and updates the config.
-
-    - Ensure the status message (e.g., "Default set to...") still appears to confirm the action to the user.
+3.  **Startup Synchronization (The "Hermes Fix")**
+    Update the `__init__` constructor to ensure the search box and dropdown are perfectly aligned on launch:
+    1. Read `default_location` (fallback to `last_location`, then "New York").
+    2. Set `self.location_input.setText(city)`.
+    3. Populate `self.saved_locations` and use `setCurrentText(city)` to ensure both match immediately.
 
 ## 🧪 Success Criteria
 
-1. **Minimalist UI:** The "Saved" row is now just a label, a dropdown, and a "Save" button.
-2. **Ease of Use:** Right-clicking the dropdown provides a clear "management" suite of options.
-3. **Stability:** Setting a default from the menu correctly updates config.json and survives a restart.
+1. **Minimalist UI:** The "Saved" row no longer causes horizontal window stretching.
+2. **Functionality:** Right-clicking the dropdown successfully opens the management menu.
+3. **Correct Sync:** The app starts with the search bar and dropdown showing the exact same location.
