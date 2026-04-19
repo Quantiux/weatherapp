@@ -128,6 +128,20 @@ class ConfigManager:
         except ValueError:
             return
 
+    def clear_all_locations(self) -> None:
+        """Clear all saved locations.
+
+        Resets the saved_locations list to empty and persists the change. This
+        method is defensive and will swallow I/O errors to avoid crashing the
+        GUI during shutdown or in read-only environments.
+        """
+        try:
+            self.data["saved_locations"] = []
+            self.save()
+        except Exception:
+            # Swallow errors to preserve existing defensive behavior
+            return
+
     def set_last_location(self, location: str) -> None:
         self.data["last_location"] = (location or "").strip()
         self.save()

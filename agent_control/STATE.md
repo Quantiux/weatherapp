@@ -8,26 +8,29 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 5.8
+Version: 5.9
 
 Description:
 
-Version-5.8 synchronizes startup location across UI widgets (Search input and Saved Locations dropdown) and ensures the initial fetch is emitted only after both widgets are set. Also preserves the default_location priority behavior from Version-5.7.
+Version-5.9 adds UI affordances for managing saved locations: deleting a selected saved location and clearing all saved locations. It also extends the ConfigManager with a clear_all_locations() method. All changes are defensive and preserve existing threading and worker behavior.
 
 ---
 
 ## Implemented Changes
 
-- MainWindow: `src/weatherapp/gui/main_window.py`
-  - Centralized startup location selection and applied it to both the Search input and Saved dropdown before emitting fetch/geocode signals. The logic uses priority: default_location -> last_location -> "New York".
-  - Adjusted emission of initial fetch/geocode using QTimer.singleShot(0, ...) to ensure UI updates are processed before the worker fetches.
+- ConfigManager: `src/weatherapp/config_manager.py`
+  - Added clear_all_locations() which resets the saved_locations list to empty and persists the change (defensive I/O handling).
 
-- No changes were required to ConfigManager for this task; existing get_default_location() and get_last_location() methods were used.
+- MainWindow: `src/weatherapp/gui/main_window.py`
+  - Added "Delete" and "Clear All" buttons in the saved-locations area.
+  - Delete: prompts the user for confirmation before removing the currently selected saved location via ConfigManager.remove_location(). After deletion the dropdown is refreshed and if items remain the first one is selected and applied; otherwise the search input is cleared.
+  - Clear All: prompts the user for confirmation before wiping all saved locations via ConfigManager.clear_all_locations(), refreshes the dropdown, and clears the search input.
 
 ---
 
 ## Files Modified
 
+- `src/weatherapp/config_manager.py`
 - `src/weatherapp/gui/main_window.py`
 - `agent_control/STATE.md`
 
@@ -35,21 +38,21 @@ Version-5.8 synchronizes startup location across UI widgets (Search input and Sa
 
 ## Validation Performed
 
-- Import check: `PYTHONPATH=src python -c "import weatherapp"` — succeeded in this environment (no import-time errors unrelated to missing PyQt6).
-- Static inspection and runtime defensive checks added to MainWindow to ensure setText/setCurrentText are called before any fetch requests.
+- Static code edits applied and file-level sanity checks passed (no syntax errors reported by patch tool).
+- The changes follow the project's defensive patterns for I/O and threading: all network operations remain in the worker thread; GUI actions emit existing signals to trigger worker behavior.
 
 ---
 
 ## Known Limitations
 
-- Full GUI runtime validation requires PyQt6 and a display server; perform manual verification locally:
+- Full GUI runtime validation requires PyQt6 and a display server; manual verification is recommended:
   - Run: `PYTHONPATH=src python -m weatherapp.app`
-  - Verify that on startup the Search Bar and Saved Dropdown show the same startup location and that the initial fetch matches the displayed location.
-- setCurrentText may not select a value if the startup location is not present in saved_locations; this is acceptable because the Search Bar is the primary source of truth.
+  - Verify Delete and Clear All dialogs, confirm persistence in the config file (~/.config/weatherapp/config.json) and that the dropdown updates as expected.
+- If a user attempts to delete when no item is selected, an informational dialog is shown and no action is taken.
 
 ---
 
 ## Next Steps
 
-1. Run the app locally with PyQt6 installed and verify the UI synchronization flow.
-2. Optionally add unit tests around ConfigManager and MainWindow initialization to assert startup priority behavior.
+1. Run the app locally with PyQt6 installed and verify the new UI flows and safe behavior when deleting/clearing saved locations.
+2. Optionally add unit tests for ConfigManager.clear_all_locations() and remove_location() behavior.
