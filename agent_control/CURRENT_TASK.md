@@ -1,41 +1,37 @@
-# Version 5.10 — UI Declutter (Context Menus)
+# Version 5.11 — Single-Row Consolidation
 
 ## 🎯 Objective
 
-Relocate **Set Default**, **Delete**, and **Clear All** actions to a right-click context menu on the `saved_locations` dropdown. This leaves the "Save" button as the only primary physical action, maximizing horizontal space and fixing the startup widget sync.
+Refactor the location and saved list management into a single, highly efficient horizontal row.
 
-## 🛠 Implementation Steps
+## 🛠 Requirements
 
-1.  **UI Refactoring** (`src/weatherapp/gui/main_window.py`)
-    - **Remove Buttons:** Delete the instances of `self.set_default_button`, `self.delete_location_button`, and `self.clear_locations_button`.
+1. **Layout Refactoring** (`src/weatherapp/gui/main_window.py`)
+   - **Horizontal Consolidation:** Replace the multiple layout rows with a single `QHBoxLayout` (e.g., `control_bar`).
 
-    - **Refactor Layout:** Simplify the `saved_layout` to include only:
+   - **Widget Order:**
+     1. `QLabel("Location:")`
 
-    ```
-    [Label: "Saved:"] [Dropdown (Stretch)] [Save Button]
-    ```
+     2. `self.saved_locations` (`QComboBox`, stretch=1) — _Contains the context menu_.
 
-    - **Enable Context Menu:**
+     3. `self.location_input` (`QLineEdit`, stretch=2) — _The primary search box_.
 
-    ```python
-    self.saved_locations.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-    self.saved_locations.customContextMenuRequested.connect(self.on_saved_context_menu)
-    ```
+     4. `self.apply_button` (`QPushButton`)
 
-2.  **Context Menu Implementation**
-    Add the `on_saved_context_menu` handler to provide management options:
-    - ⭐ **Set Default:** Configures the currently selected city as the `default_location`.
-    - 🗑️ **Delete:** Removes the current city from the list (with confirmation).
-    - 🧹 **Clear All:** Wipes the entire saved history (with confirmation).
+     5. `self.save_button` (`QPushButton`)
 
-3.  **Startup Synchronization (The "Hermes Fix")**
-    Update the `__init__` constructor to ensure the search box and dropdown are perfectly aligned on launch:
-    1. Read `default_location` (fallback to `last_location`, then "New York").
-    2. Set `self.location_input.setText(city)`.
-    3. Populate `self.saved_locations` and use `setCurrentText(city)` to ensure both match immediately.
+2. **Synchronized Interaction Logic**
+   - **Dropdown Selection:** When an item is selected in the dropdown, it must immediately update the text in `self.location_input`.
+   - **Save Logic:** When "Save" is clicked, it takes the text from `self.location_input`, adds it to the config and the dropdown, and updates the UI.
+   - **Context Menu:** Retain the right-click menu on the `saved_locations` dropdown for **Set Default**, **Delete**, and **Clear All**.
+
+3. **Startup Alignment (The "Hermes Fix")**
+   - Ensure the `__init__` constructor identifies the startup city (Default → Last → NYC).
+   - Set both the dropdown and the text input to this city before the first fetch.
 
 ## 🧪 Success Criteria
 
-1. **Minimalist UI:** The "Saved" row no longer causes horizontal window stretching.
-2. **Functionality:** Right-clicking the dropdown successfully opens the management menu.
-3. **Correct Sync:** The app starts with the search bar and dropdown showing the exact same location.
+1. The entire location interface exists on one line.
+2. Right-clicking the dropdown still provides management tools.
+3. Changing the dropdown selection changes the text in the input box.
+4. The window width remains manageable due to the removal of the three maintenance buttons.
