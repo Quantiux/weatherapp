@@ -494,43 +494,31 @@ class MainWindow(QWidget):
         self.location_input = QLineEdit()
         # Keep a QDoubleValidator around for quick numeric validation when needed
         validator = QDoubleValidator(-180.0, 180.0, 6, self)
-        self.location_input.setFixedWidth(220)
+        # Remove fixed widths so the layout can use stretch factors for responsiveness
         # Note: we don't set the validator globally because input may be non-numeric
-        # Initialize with defaults shown as "lat,lon" to preserve user expectations
         # Initialize the location input with a human-readable default; last_location (if present) will override later.
         self.location_input.setText("New York")
 
         # Saved locations dropdown and Save button (Version-5.4)
         self.saved_locations = QComboBox()
-        # Let the combobox expand when layout stretches
-        self.saved_locations.setFixedWidth(180)
         self.save_location_button = QPushButton("Save")
 
         # Apply button for the free-form location input
         self.apply_location_button = QPushButton("Apply")
 
-        # Build a compact saved-row: [Saved:] [Dropdown (stretch)] [Save]
-        saved_row = QHBoxLayout()
-        saved_row.setContentsMargins(0, 0, 0, 0)
-        saved_row.setSpacing(6)
-        saved_row.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        saved_label = QLabel("Saved:")
-        saved_row.addWidget(saved_label)
-        saved_row.addWidget(self.saved_locations)
-        saved_row.addWidget(self.save_location_button)
+        # Build a single horizontal control bar: [Location:] [Dropdown (stretch=1)] [Input (stretch=2)] [Apply] [Save]
+        control_bar = QHBoxLayout()
+        control_bar.setContentsMargins(0, 0, 0, 0)
+        control_bar.setSpacing(6)
+        control_bar.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        control_bar.addWidget(loc_label)
+        control_bar.addWidget(self.saved_locations, 1)
+        control_bar.addWidget(self.location_input, 2)
+        control_bar.addWidget(self.apply_location_button)
+        control_bar.addWidget(self.save_location_button)
 
-        # Location row: compact free-form input + Apply button
-        loc_row = QHBoxLayout()
-        loc_row.setContentsMargins(0, 0, 0, 0)
-        loc_row.setSpacing(6)
-        loc_row.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        loc_row.addWidget(loc_label)
-        loc_row.addWidget(self.location_input)
-        loc_row.addWidget(self.apply_location_button)
-
-        # Insert saved row and location row above the tabs
-        main_layout.addLayout(saved_row)
-        main_layout.addLayout(loc_row)
+        # Insert the control bar above the tabs
+        main_layout.addLayout(control_bar)
         # --- End Location editor row ---
 
         main_layout.addWidget(tabs)

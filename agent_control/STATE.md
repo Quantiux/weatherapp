@@ -8,7 +8,7 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 5.10
+Version: 5.11
 
 Description:
 
