@@ -1,37 +1,37 @@
-# Version 5.11 — Single-Row Consolidation
+# Version 5.12 — Single-Row Command Bar
 
 ## 🎯 Objective
 
-Refactor the location and saved list management into a single, highly efficient horizontal row.
+Finalize the location management by moving all controls into a single, high-density row and fixing the context menu responsiveness by decoupling selection from automatic fetching.
 
-## 🛠 Requirements
+## 🛠 Implementation Details
 
-1. **Layout Refactoring** (`src/weatherapp/gui/main_window.py`)
-   - **Horizontal Consolidation:** Replace the multiple layout rows with a single `QHBoxLayout` (e.g., `control_bar`).
+1. **Unified Layout** (`src/weatherapp/gui/main_window.py`)
+   - **Container:** A single `QHBoxLayout` for the entire control suite.
 
-   - **Widget Order:**
+   - **Order:**
      1. `QLabel("Location:")`
 
-     2. `self.saved_locations` (`QComboBox`, stretch=1) — _Contains the context menu_.
+     2. `self.saved_locations` (`QComboBox`, stretch=1) — _Stretches to fill space_.
 
-     3. `self.location_input` (`QLineEdit`, stretch=2) — _The primary search box_.
+     3. `self.location_input` (`QLineEdit`, stretch=2) — _Stretches more to allow for long addresses_.
 
      4. `self.apply_button` (`QPushButton`)
 
      5. `self.save_button` (`QPushButton`)
 
-2. **Synchronized Interaction Logic**
-   - **Dropdown Selection:** When an item is selected in the dropdown, it must immediately update the text in `self.location_input`.
-   - **Save Logic:** When "Save" is clicked, it takes the text from `self.location_input`, adds it to the config and the dropdown, and updates the UI.
-   - **Context Menu:** Retain the right-click menu on the `saved_locations` dropdown for **Set Default**, **Delete**, and **Clear All**.
+2. **Signal & Context Menu Fix**
+   - **Dropdown Selection:** Change `self.saved_locations.currentIndexChanged` to `self.saved_locations.activated`.
+     - _Benefit:_ This ensures that right-clicking to open the menu doesn't accidentally trigger a weather fetch if the index happens to shift, and prevents the "fetch-on-startup" loop.
+   - **Context Policy:** Ensure `setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)` is set before any signals are connected.
 
-3. **Startup Alignment (The "Hermes Fix")**
-   - Ensure the `__init__` constructor identifies the startup city (Default → Last → NYC).
-   - Set both the dropdown and the text input to this city before the first fetch.
+3. **Interaction Flow**
+   - **Select from Dropdown:** Automatically fills `location_input` and triggers a fetch.
+   - **Type in Input:** User hits "Apply" or "Enter" to fetch.
+   - **Right-Click Dropdown:** Opens the management menu immediately.
 
 ## 🧪 Success Criteria
 
 1. The entire location interface exists on one line.
-2. Right-clicking the dropdown still provides management tools.
-3. Changing the dropdown selection changes the text in the input box.
-4. The window width remains manageable due to the removal of the three maintenance buttons.
+2. Right-clicking the dropdown provides management tools.
+3. The window width remains manageable due to the removal of the three maintenance buttons.
