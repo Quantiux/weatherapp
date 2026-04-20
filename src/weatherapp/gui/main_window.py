@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QPushButton,
     QMessageBox,
+    QSizePolicy,
     QTabWidget, QComboBox, QMenu,
 )
 from PyQt6.QtCore import QTimer, QThread, pyqtSignal, Qt, QRectF
@@ -44,6 +45,7 @@ class MainWindow(QWidget):
         """
         super().__init__()
         self.setWindowTitle("WeatherApp")
+        self.resize(450, 300)   # width, height
 
         # Compute icons directory: src/weatherapp/icons
         self._icons_dir = Path(__file__).resolve().parent.parent / "icons"
@@ -510,6 +512,10 @@ class MainWindow(QWidget):
         # Saved locations dropdown and Save button (Version-5.4)
         self.saved_locations = QComboBox()
         self.save_location_button = QPushButton("Save")
+        self.saved_locations.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed
+        )
 
         # Apply button for the free-form location input
         self.apply_location_button = QPushButton("Apply")
