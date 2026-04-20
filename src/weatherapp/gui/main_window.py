@@ -269,8 +269,8 @@ class MainWindow(QWidget):
 
                 # Icon + description (next row, spans two columns)
                 self.icon_label = QLabel()
-                # Increase icon size to 32x32 as required by Version-4.4
-                self.icon_label.setFixedSize(32, 32)
+                # Increase icon size to 48x48 for better visibility on the card
+                self.icon_label.setFixedSize(48, 48)
                 self.icon_label.setScaledContents(True)
                 self.desc_label = QLabel("--")
                 # Description text should be bold
