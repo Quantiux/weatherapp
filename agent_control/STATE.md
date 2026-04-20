@@ -8,11 +8,15 @@ It is updated by the agent after completing each task.
 
 ## Current Version
 
-Version: 5.11
+Version: 5.13
 
 Description:
 
-Version-5.10 implements the UI Declutter (Context Menus) task:
+Version-5.13 implements the UI Polish (Refresh Now button centering) task:
+
+- Centered the "Refresh Now" button in the NOW tab by wrapping it in a QHBoxLayout with stretch spacers.
+- Preserved all existing button label text and click behavior; worker threading and signal wiring unchanged.
+- Kept changes minimal and localized to src/weatherapp/gui/main_window.py.
 
 - Relocated the "Set Default", "Delete", and "Clear All" management actions from visible buttons into a right-click context menu on the saved locations dropdown.
 - Simplified the saved-locations row to a compact layout: [Saved:] [Dropdown (stretch)] [Save]. The free-form Location input remains on a separate row with an Apply button to preserve horizontal space.

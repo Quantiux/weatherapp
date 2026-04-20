@@ -448,7 +448,15 @@ class MainWindow(QWidget):
         now_layout.addLayout(time_row)
         now_layout.addLayout(top_row)
         now_layout.addLayout(grid)
-        now_layout.addWidget(self.refresh_button)
+        # Center the refresh button horizontally by placing it in a small
+        # horizontal layout with stretch spacers. This prevents the button from
+        # expanding to the full width of the NOW tab while preserving its
+        # existing connections and behavior.
+        refresh_layout = QHBoxLayout()
+        refresh_layout.addStretch()
+        refresh_layout.addWidget(self.refresh_button)
+        refresh_layout.addStretch()
+        now_layout.addLayout(refresh_layout)
         now_tab.setLayout(now_layout)
         tabs.addTab(now_tab, "NOW")
 
