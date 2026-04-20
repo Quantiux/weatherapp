@@ -1,6 +1,6 @@
 # WeatherApp
 
-**WeatherApp** is a lightweight desktop weather application built with **PyQt6**. It retrieves weather data from the Open-Meteo API and presents current conditions, a short-term hourly forecast, and a multi-day outlook in a clean graphical interface.
+**WeatherApp** is a lightweight desktop weather application built with **PyQt6**. It retrieves weather data from the Open-Meteo API and presents current conditions, 24-hour hourly forecast, and 7-day outlook in a clean interface.
 
 The application is designed to be fast, simple, and easy to run on a local machine.
 
@@ -8,27 +8,34 @@ The application is designed to be fast, simple, and easy to run on a local machi
 
 ## Features
 
-* Current weather conditions
-* **48-hour hourly forecast**
-* **10-day forecast**
-* Clean PyQt6 desktop interface
-* Lightweight and responsive
-* Simple architecture designed for reliability
-
-At present the application uses a **fixed location**. A city search feature may be added in a future version.
+- Current weather conditions
+- **24-hour hourly forecast**
+- **7-day forecast**
+- Clean PyQt6 desktop interface
+- Lightweight and responsive
+- Simple architecture designed for reliability
 
 ---
 
 ## Requirements
 
-* Python 3.12 or newer
-* Poetry (for dependency management)
+- Python 3.12 or newer
+- Poetry (for dependency management)
 
 ---
 
 ## Installation
 
-Clone the repository:
+1. Prerequisites:
+
+For linux platforms, starting with Qt 6.5, the `xcb` platform plugin - which allows Qt to communicate with the X11 window system - has explicit dependency on libxcb-cursor library, which is often not included in minimal or standard desktop installs. Make sure the `libxcb-cursor0` package is installed on your system. If not, install with:
+
+```bash
+sudo apt update
+sudo apt install libxcb-cursor0
+```
+
+2. Clone the repository:
 
 ```bash
 mkdir WeatherApp
@@ -36,7 +43,7 @@ cd WeatherApp
 git clone https://github.com/Quantiux/weatherapp.git
 ```
 
-Install dependencies using Poetry:
+3. Install dependencies using Poetry:
 
 ```bash
 poetry install
@@ -66,15 +73,8 @@ Weather data is provided by the **Open-Meteo API**, which supplies free weather 
 
 Planned or possible enhancements:
 
-* City search and location selection
-* Settings panel (units, refresh interval)
-* Weather icons and visual improvements
-* Caching of forecast data
-* Packaging as a standalone desktop application
-
 ---
 
 ## License
 
 MIT License
-
