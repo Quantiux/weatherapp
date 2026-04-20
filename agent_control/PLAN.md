@@ -1,116 +1,43 @@
-# Implementation Plan (Version-5.11)
+# Implementation Plan — Version 5.14 (README rewrite)
 
 Goal:
 
-Implement Version 5.11 — Single-Row Consolidation: refactor the location controls into a single horizontal control bar and ensure the saved-dropdown and free-form input remain synchronized, preserve the context menu, and ensure startup alignment (Default -> Last -> "New York").
+Produce a clear, polished, professional README.md suitable for a public GitHub repository that accurately describes the current WeatherApp state. Modify only README.md for the product content; agent_control/PLAN.md and agent_control/STATE.md will be updated to record plan and outcome.
 
-Files to inspect/modify:
+Files to create/modify:
 
-- src/weatherapp/gui/main_window.py  (consolidate Saved + Location into one QHBoxLayout; remove fixed widths in favor of stretch; keep worker wiring and context menu)
-- agent_control/STATE.md (update after verification)
-
-Design constraints / notes:
-
-- Follow agent_control/CONSTRAINTS.md: modify only files required by this task, keep diffs minimal, do not add dependencies.
-- Preserve existing behavior: network/IO stays in worker thread; signals/slots remain as-is.
-- Keep changes defensive (try/except around config access and setCurrentText) and maintain existing attribute names where reasonable to minimize diffs.
+- Modify: README.md
+- Create/Update: agent_control/PLAN.md (this file)
+- Update: agent_control/STATE.md (after verification)
 
 Acceptance criteria:
 
-1. The entire location interface exists on a single horizontal row with widget order:
-   - QLabel("Location:")
-   - self.saved_locations (QComboBox, stretch=1)
-   - self.location_input (QLineEdit, stretch=2)
-   - self.apply_location_button (QPushButton)
-   - self.save_location_button (QPushButton)
-2. Right-clicking the dropdown still shows Set Default / Delete / Clear All.
-3. Selecting an item in the dropdown immediately updates the text in the input and triggers the Apply flow.
-4. Startup priority preserved and both widgets are set to the startup city before the first fetch (Default -> Last -> "New York").
+1. README.md contains the required sections listed in agent_control/CURRENT_TASK.md: title, short description, features, screenshots, installation, running instructions, data source, project structure (brief), future improvements, and license.
+2. Screenshots use the provided images (docs/screenshots/current.png, hourly.png, daily.png) with standard Markdown image syntax.
+3. Installation includes the libxcb-cursor0 note and example commands using Poetry.
+4. Running instructions use the module entry: `poetry run python -m weatherapp.app` (as specified in CURRENT_TASK.md).
+5. README is concise, factual, avoids emojis and exaggerated claims, and reflects the repository state.
 
-Tasks (bite-sized):
+Tasks (small, ordered):
 
-Task 1 — Inspect current implementation (5–10 min)
+Task 1 — Draft README (5–15 min)
+- Write the full README.md content following the sections and style requirements.
+- Keep language professional and concise.
 
-Objective: Locate the existing location rows and startup logic in MainWindow.__init__.
-Files:
-- src/weatherapp/gui/main_window.py
+Task 2 — Sanity check (2–5 min)
+- Ensure image paths exist (docs/screenshots/...) and the file names match.
+- Ensure the run command and installation steps match CURRENT_TASK.md.
 
-Steps:
-- Identify the block that creates the saved_row and loc_row and where they are added to main_layout.
-- Confirm existing signal/slot wiring for apply/save and saved_locations.activated.
+Task 3 — Update STATE.md (5 min)
+- Document that README.md was updated and list files changed.
+- Note that no Python source files were modified.
 
-Task 2 — Replace with single control bar (10–30 min)
+Verification:
+- Manual review of README.md content for accuracy and tone.
+- Confirm images referenced exist in docs/screenshots/.
+- Confirm no source files were changed (only README.md, PLAN.md, STATE.md updated).
 
-Objective: Replace the two separate rows with a single QHBoxLayout (control_bar) in the same position in the layout.
-Files:
-- src/weatherapp/gui/main_window.py
-
-Steps:
-- Remove setFixedWidth calls for saved_locations and location_input.
-- Create control_bar = QHBoxLayout() and add widgets in the required order using stretch factors for saved_locations (1) and location_input (2).
-- Replace main_layout.addLayout(saved_row); main_layout.addLayout(loc_row) with main_layout.addLayout(control_bar).
-- Keep all existing handlers (apply/save/context menu) intact and ensure they reference the same attributes.
-
-Task 3 — Verify interaction logic (5–15 min)
-
-Objective: Ensure dropdown selection updates the input and triggers apply; Save updates config and dropdown.
-Files:
-- src/weatherapp/gui/main_window.py
-
-Steps:
-- Ensure saved_locations.activated handler sets location_input text and clicks Apply.
-- Ensure _save_location uses ConfigManager.add_location and calls _populate_saved_locations().
-- Keep context menu handler on_saved_context_menu unchanged.
-
-Task 4 — Startup Alignment (Hermes Fix) (5–15 min)
-
-Objective: Ensure startup_location is computed once and applied to both widgets before emitting the initial fetch/geocode.
-Files:
-- src/weatherapp/gui/main_window.py
-
-Steps:
-- Preserve existing startup logic block but ensure control_bar widgets are set before QTimer.singleShot(...) emission.
-- Use QTimer.singleShot(0, ...) to defer the fetch so UI updates are processed.
-
-Task 5 — Basic runtime checks (5–15 min)
-
-Objective: Ensure no import-time errors and basic behavior.
-Steps:
-- Run: PYTHONPATH=src python -c "import weatherapp" to detect import issues.
-- If possible, instantiate MainWindow in a headless check; otherwise rely on static inspection.
-
-Task 6 — Update agent_control/STATE.md (5–10 min)
-
-Objective: Record what was implemented, files changed, and limitations.
-Files:
-- agent_control/STATE.md
-
-Steps:
-- Document exact edits to MainWindow and mention any defensive handling.
-- Note verification steps performed and any remaining manual UI checks required.
-
-Risks / uncertainties:
-
-- setCurrentText may be ignored if startup location is not present in the combobox — treat the input as the single visible source of truth.
-- Headless environments cannot exercise context menu behavior; document this in STATE.md.
-
-Verification checklist (before finishing):
-
-- [ ] Single-row control bar created with the specified widget order and stretch.
-- [ ] Context menu preserved and functional.
-- [ ] Dropdown selection updates input and triggers Apply.
-- [ ] Startup location applied to both widgets before the first fetch.
-- [ ] Import smoke check passes.
-- [ ] agent_control/STATE.md updated.
-
-Next actions (I'll perform now):
-
-1. Edit src/weatherapp/gui/main_window.py to replace the two-row location editor with the single-row control bar and remove the fixed widths.
-2. Run import smoke checks: PYTHONPATH=src python -c "import weatherapp".
-3. Update agent_control/STATE.md with a concise summary of changes and verification results.
-
-Notes/Constraints:
-
-- Do not add external dependencies; use stdlib and PyQt6 only.
-- Do not stage or commit changes; human will review and commit.
-- Keep edits minimal and defensive.
+Notes / Constraints:
+- Do not modify Python source files.
+- Keep diffs minimal and avoid adding new dependencies.
+- Do not stage or commit any changes; human will review and commit.
