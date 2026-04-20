@@ -516,6 +516,10 @@ class MainWindow(QWidget):
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Fixed
         )
+        self.saved_locations.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
+        )
+        self.saved_locations.setMinimumContentsLength(5)
 
         # Apply button for the free-form location input
         self.apply_location_button = QPushButton("Apply")
