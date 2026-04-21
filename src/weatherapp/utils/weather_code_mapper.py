@@ -1,0 +1,94 @@
+"""
+Map Open-Meteo weather codes (0–99) to:
+- Local SVG filenames (day/night variants)
+- Human-readable descriptions
+
+Used by the PyQt6 GUI and CLI output.
+
+Icons live in: ~/Projects/WeatherApp/src/weatherapp/icons/
+Downloaded via: utils/download_icons.sh
+"""
+
+# ---------------------------
+# SVG mapping (day/night)
+# ---------------------------
+WEATHER_CODE_TO_SVG = {
+    0: {"day": "clear-day.svg", "night": "clear-night.svg"},
+    1: {"day": "cloudy-day-1.svg", "night": "cloudy-night-1.svg"},
+    2: {"day": "cloudy-day-3.svg", "night": "cloudy-night-3.svg"},
+    3: {"day": "cloudy.svg", "night": "cloudy.svg"},
+    45: {"day": "fog-day.svg", "night": "fog-night.svg"},
+    48: {"day": "fog.svg", "night": "fog.svg"},
+    51: {"day": "rainy-1-day.svg", "night": "rainy-1-night.svg"},
+    53: {"day": "rainy-2-day.svg", "night": "rainy-2-night.svg"},
+    55: {"day": "rainy-3-day.svg", "night": "rainy-3-night.svg"},
+    56: {"day": "rain-and-sleet-mix.svg", "night": "rain-and-sleet-mix.svg"},
+    57: {"day": "rain-and-sleet-mix.svg", "night": "rain-and-sleet-mix.svg"},
+    61: {"day": "rainy-1-day.svg", "night": "rainy-1-night.svg"},
+    63: {"day": "rainy-2-day.svg", "night": "rainy-2-night.svg"},
+    65: {"day": "rainy-3-day.svg", "night": "rainy-3-night.svg"},
+    66: {"day": "rain-and-sleet-mix.svg", "night": "rain-and-sleet-mix.svg"},
+    67: {"day": "rain-and-sleet-mix.svg", "night": "rain-and-sleet-mix.svg"},
+    71: {"day": "snowy-1-day.svg", "night": "snowy-1-night.svg"},
+    73: {"day": "snowy-2-day.svg", "night": "snowy-2-night.svg"},
+    75: {"day": "snowy-3-day.svg", "night": "snowy-3-night.svg"},
+    77: {"day": "snow-and-sleet-mix.svg", "night": "snow-and-sleet-mix.svg"},
+    80: {"day": "rainy-1-day.svg", "night": "rainy-1-night.svg"},
+    81: {"day": "rainy-2-day.svg", "night": "rainy-2-night.svg"},
+    82: {"day": "rainy-3-day.svg", "night": "rainy-3-night.svg"},
+    85: {"day": "rain-and-snow-mix.svg", "night": "rain-and-snow-mix.svg"},
+    86: {"day": "rain-and-snow-mix.svg", "night": "rain-and-snow-mix.svg"},
+    95: {"day": "isolated-thunderstorms-day.svg", "night": "isolated-thunderstorms-night.svg"},
+    96: {"day": "scattered-thunderstorms-day.svg", "night": "scattered-thunderstorms-night.svg"},
+    99: {"day": "severe-thunderstorm.svg", "night": "severe-thunderstorm.svg"},
+}
+
+UNKNOWN_ICON = {"day": "wi-na.svg", "night": "wi-na.svg"}
+
+# ---------------------------
+# Description mapping (single string)
+# ---------------------------
+WEATHER_CODE_TO_DESC = {
+    0: "clear sky",
+    1: "mostly clear",
+    2: "partly cloudy",
+    3: "overcast",
+    45: "light fog",
+    48: "heavy fog",
+    51: "light drizzle",
+    53: "moderate drizzle",
+    55: "heavy drizzle",
+    56: "light freezing drizzle",
+    57: "heavy freezing drizzle",
+    61: "slight rain",
+    63: "moderate rain",
+    65: "heavy rain",
+    66: "light freezing rain",
+    67: "heavy freezing rain",
+    71: "slight snow",
+    73: "moderate snow",
+    75: "heavy snow",
+    77: "grainy snow",
+    80: "slight rain showers",
+    81: "moderate rain showers",
+    82: "violent rain showers",
+    85: "slight snow showers",
+    86: "heavy snow showers",
+    95: "thunderstorm",
+    96: "thunderstorm with hail",
+    99: "thunderstorm with hail",
+}
+
+UNKNOWN_DESC = "--"
+
+# ---------------------------
+# Helpers
+# ---------------------------
+def get_svg_for_code(code: int, time_of_day: str = "day") -> str:
+    """Return the SVG filename for a given weather code and time of day."""
+    return WEATHER_CODE_TO_SVG.get(code, UNKNOWN_ICON).get(time_of_day, "wi-na.svg")
+
+
+def get_desc_for_code(code: int) -> str:
+    """Return human-readable description for a given weather code."""
+    return WEATHER_CODE_TO_DESC.get(code, UNKNOWN_DESC)
