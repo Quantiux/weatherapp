@@ -874,7 +874,7 @@ class MainWindow(QWidget):
 
         try:
             if self._config:
-                self._config.clear_locations()
+                self._config.clear_all_locations()
 
             self._populate_saved_locations()
 
