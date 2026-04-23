@@ -1,5 +1,10 @@
 """Main window implementation for WeatherApp.
 
+This module provides the MainWindow class, which is the primary GUI component
+of the WeatherApp application. It handles UI layout, user interactions, weather
+data display, and coordinates with the Worker thread for asynchronous weather
+data fetching.
+
 Version-5.0: Worker coordinates are now dynamic and updated from the GUI
 before each fetch request. UI and data display behavior remain unchanged.
 """
@@ -27,14 +32,24 @@ from zoneinfo import ZoneInfo
 from weatherapp.gui.worker import Worker, DEFAULT_COORDS
 
 class MainWindow(QWidget):
-    """Main window for WeatherApp with display adjustments for Version-2.1.
+    """Main window for WeatherApp with tabbed interface for current, hourly, and daily forecasts.
 
-    Behavioral logic (threads, signals, data handling) is unchanged.
+    This window provides:
+    - Current weather display with icon, description, and data grid
+    - 24-hour hourly forecast in a scrollable table
+    - 7-day daily forecast with card-based layout
+    - Location management with saved locations and geocoding support
+    - Automatic refresh every 10 minutes
+    - Background worker thread for non-blocking weather data fetching
+
+    Behavioral logic (threads, signals, data handling) follows the QThread pattern
+    with Worker objects moved to separate threads for I/O operations.
     """
 
     # Expose a signal to request the worker to fetch (queued across threads)
     request_fetch = pyqtSignal()
     request_geocode = pyqtSignal(str)
+    request_set_coords = pyqtSignal(float, float)
 
     def __init__(self) -> None:
         """Construct the window, layout widgets, and start the worker thread.
@@ -250,6 +265,11 @@ class MainWindow(QWidget):
 
         # Local small Card widget class defined inside __init__ to keep changes localized.
         class DayCardWidget(QFrame):
+            """Card widget for displaying a single day in the 7-day forecast.
+
+            Displays date, weather icon/description, and a grid of daily metrics
+            including temperature range, humidity, wind, precipitation, and sunrise/sunset.
+            """
             def __init__(self) -> None:
                 super().__init__()
                 self.setFrameShape(QFrame.Shape.StyledPanel)
@@ -320,6 +340,14 @@ class MainWindow(QWidget):
                 self.setLayout(layout)
 
             def populate_from_dict(self, item: dict, main: "MainWindow") -> None:
+                """Populate card widgets from a daily forecast dictionary.
+
+                Args:
+                    item: Dictionary containing daily forecast fields (Date, svg, description,
+                          temperature ranges, humidity, wind, precipitation, etc.).
+                    main: Reference to the MainWindow for accessing helper methods like
+                          _load_svg_pixmap, _visibility_text, and _uv_text.
+                """
                 # Date
                 self.date_label.setText(item.get("Date", "--"))
 
@@ -345,7 +373,16 @@ class MainWindow(QWidget):
                 else:
                     self.desc_label.setText("--")
 
-                def _fmt_daily(key, fmt):
+                def _fmt_daily(key: str, fmt: str) -> str:
+                    """Format a daily metric value with fallback to '--'.
+
+                    Args:
+                        key: Dictionary key to extract from item.
+                        fmt: Format string for numeric values.
+
+                    Returns:
+                        Formatted string or '--' if value is missing/invalid.
+                    """
                     val = item.get(key)
                     if val is None:
                         return "--"
@@ -562,6 +599,7 @@ class MainWindow(QWidget):
         # Connect: request_fetch emits a queued call to worker.fetch
         self.request_fetch.connect(self._worker.fetch)
         self.request_geocode.connect(self._worker.set_location_query)
+        self.request_set_coords.connect(self._worker.set_coords)
 
         # Enable context menu on the saved locations combobox and wire handler
         try:
@@ -581,24 +619,10 @@ class MainWindow(QWidget):
         self._thread.start()
 
         # Connect UI actions to request a fetch when the user clicks the button
-        # Ensure we pass current coordinates to the worker before requesting fetch
         def _on_refresh_with_coords():
-            try:
-                # Call the worker's set_coords slot via a direct method call; the
-                # Worker lives in another thread but this slot is a PyQt slot and
-                # will be queued when invoked across threads via a signal. To keep
-                # the change queued we emit a small lambda via QTimer.singleShot(0).
-                # Simpler approach: call the slot directly — PyQt will queue it.
-                self._worker.set_coords(self.coords[0], self.coords[1])
-            except Exception:
-                # If direct call fails for any reason, fall back to setting an
-                # attribute which the worker will read (defensive), though the
-                # preferred approach is the set_coords slot.
-                try:
-                    self._worker.coords = (float(self.coords[0]), float(self.coords[1]))
-                except Exception:
-                    pass
-            # Now request fetch as before
+            # Send updated coordinates to the worker thread, then request a fetch
+            lat, lon = self.coords
+            self.request_set_coords.emit(lat, lon)
             self.request_fetch.emit()
 
         self.refresh_button.clicked.connect(_on_refresh_with_coords)
@@ -750,7 +774,14 @@ class MainWindow(QWidget):
         super().closeEvent(event)
 
     def on_saved_context_menu(self, pos) -> None:
-        """Context menu for saved locations dropdown (operates on clicked row)."""
+        """Display context menu for saved locations dropdown.
+
+        Args:
+            pos: Position where the context menu was requested (in view coordinates).
+
+        The context menu provides options to set a location as default, delete a
+        specific location, or clear all saved locations.
+        """
 
         view = self.saved_locations.view()
 
@@ -780,7 +811,14 @@ class MainWindow(QWidget):
             self._clear_all_locations()
 
     def _delete_location(self, text: str) -> None:
-        """Delete a saved location."""
+        """Delete a saved location from configuration.
+
+        Args:
+            text: Location name to delete.
+
+        Prompts the user for confirmation before deleting. Updates the saved
+        locations dropdown after successful deletion.
+        """
 
         reply = QMessageBox.question(
             self,
@@ -802,7 +840,13 @@ class MainWindow(QWidget):
             QMessageBox.warning(self, "Delete Failed", "Unable to delete location.")
 
     def _set_default_location(self, text: str) -> None:
-        """Set a saved location as default."""
+        """Set a saved location as the default startup location.
+
+        Args:
+            text: Location name to set as default.
+
+        The default location is automatically loaded when the application starts.
+        """
 
         try:
             if self._config:
@@ -812,7 +856,11 @@ class MainWindow(QWidget):
             QMessageBox.warning(self, "Error", "Unable to set default location.")
 
     def _clear_all_locations(self) -> None:
-        """Remove all saved locations."""
+        """Remove all saved locations from configuration.
+
+        Prompts the user for confirmation before clearing. Updates the saved
+        locations dropdown after successful removal.
+        """
 
         reply = QMessageBox.question(
             self,
@@ -963,7 +1011,11 @@ class MainWindow(QWidget):
             pass
 
     def _populate_saved_locations(self) -> None:
-        """Load saved locations from config and populate the combobox."""
+        """Load saved locations from configuration and populate the combobox.
+
+        Clears the existing dropdown items and repopulates from ConfigManager.
+        Non-fatal: if configuration is unavailable, the dropdown remains empty.
+        """
         try:
             self.saved_locations.clear()
             if self._config is None:
@@ -1095,7 +1147,16 @@ class MainWindow(QWidget):
 
                     # Numeric fields formatted similar to current view but
                     # Visibility and UV map to textual categories.
-                    def _fmt_num(key, fmt):
+                    def _fmt_num(key: str, fmt: str) -> str:
+                        """Format an hourly metric value with fallback to '--'.
+
+                        Args:
+                            key: Dictionary key to extract from item.
+                            fmt: Format string for numeric values.
+
+                        Returns:
+                            Formatted string or '--' if value is missing/invalid.
+                        """
                         val = item.get(key)
                         if val is None:
                             return "--"

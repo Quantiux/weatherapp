@@ -7,6 +7,7 @@ import time to keep the GUI modules importable for tests and static checks.
 
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 from datetime import datetime, timezone, timedelta
+from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
 # Default coordinates in lieu of user input
@@ -336,7 +337,15 @@ class Worker(QObject):
                 daily = response.Daily()
                 # Variables indices correspond to get_weather_data params for daily
                 # Many daily fields (sunrise/sunset) are strings; attempt ValuesAsNumpy
-                def _maybe_values(var):
+                def _maybe_values(var: Any) -> Any:
+                    """Extract values from a weather API variable object.
+                    
+                    Args:
+                        var: Variable object from the weather API response.
+                        
+                    Returns:
+                        Numpy array or list of values, or None if extraction fails.
+                    """
                     try:
                         return var.ValuesAsNumpy()
                     except Exception:
@@ -376,7 +385,15 @@ class Worker(QObject):
                 daily_list = []
 
                 # Helper to parse ISO-ish datetime strings into aware datetimes
-                def _parse_iso(dt_str):
+                def _parse_iso(dt_str: Any) -> Optional[datetime]:
+                    """Parse ISO datetime strings or timestamps into aware datetime objects.
+                    
+                    Args:
+                        dt_str: ISO date/time string, Unix timestamp (int/float), or None.
+                        
+                    Returns:
+                        Aware datetime object in local timezone, or None if parsing fails.
+                    """
                     if dt_str is None:
                         return None
                     if isinstance(dt_str, (int, float)):

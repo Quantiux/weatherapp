@@ -1,20 +1,20 @@
 """Simple JSON-backed configuration manager for WeatherApp.
 
-Provides load/save and basic saved-location management. Designed to be
-lightweight, dependency-free (stdlib only), and safe for use from the GUI
-thread. The ConfigManager performs file I/O which is quick for small JSON
-files; if running in a constrained environment you may move calls to a
-background thread. For Version-5.4 we keep the API simple and synchronous.
+Provides load/save and basic saved-location management. The manager is
+intentionally lightweight, dependency-free (stdlib only), and safe to use from
+GUI code that expects defensive, non-raising persistence behavior.
 """
 from __future__ import annotations
 
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 import json
-import os
-from typing import List, Dict, Optional
+from typing import Any
 
-DEFAULT_CONFIG = {
+ConfigData = dict[str, Any]
+
+DEFAULT_CONFIG: ConfigData = {
     "last_location": None,
     "saved_locations": [],
     "refresh_interval_minutes": 10,
@@ -22,144 +22,175 @@ DEFAULT_CONFIG = {
 }
 
 
-def _config_paths() -> List[Path]:
+def _config_paths() -> list[Path]:
     """Return candidate config file paths in preferred order.
 
+    Preferred locations:
     1) ~/.config/weatherapp/config.json
     2) ~/.weatherapp_config.json
     """
-    home = Path(os.path.expanduser("~"))
-    cfg1 = home / ".config" / "weatherapp" / "config.json"
-    cfg2 = home / ".weatherapp_config.json"
-    return [cfg1, cfg2]
+    home = Path("~").expanduser()
+    primary_path = home / ".config" / "weatherapp" / "config.json"
+    fallback_path = home / ".weatherapp_config.json"
+    return [primary_path, fallback_path]
 
 
 @dataclass
 class ConfigManager:
-    path: Optional[Path] = None
-    data: Dict = field(default_factory=lambda: DEFAULT_CONFIG.copy())
+    """Manage persisted WeatherApp configuration stored in a JSON file.
 
-    def __post_init__(self):
+    Attributes:
+        path: Config file path. When omitted, the first existing preferred path
+            is used, or the primary preferred path if no config file exists yet.
+        data: In-memory configuration dictionary.
+    """
+
+    path: Path | None = None
+    data: ConfigData = field(default_factory=lambda: DEFAULT_CONFIG.copy())
+
+    def __post_init__(self) -> None:
+        """Resolve the config path, ensure a writable parent when possible, and load data."""
         if self.path is None:
-            # choose the first existing path or the default preferred path
-            candidates = _config_paths()
-            for p in candidates:
-                if p.exists():
-                    self.path = p
-                    break
-            if self.path is None:
-                # prefer ~/.config/weatherapp/config.json
-                self.path = candidates[0]
-        # ensure parent directory exists when saving
+            candidate_paths = _config_paths()
+            self.path = next(
+                (candidate_path for candidate_path in candidate_paths if candidate_path.exists()),
+                candidate_paths[0],
+            )
+
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            # If this fails (e.g., home not writable), fall back to the second path
-            try:
+        except OSError:
+            with suppress(Exception):
                 self.path = _config_paths()[1]
-            except Exception:
-                pass
-        # Load existing config if present
+
         self.load()
 
-    def load(self) -> Dict:
-        """Load config from disk. If the file is corrupted, back it up and
-        recreate a fresh config file.
+    @staticmethod
+    def _normalize_location(location: str | None) -> str:
+        """Return a trimmed location string, or an empty string when blank."""
+        return (location or "").strip()
+
+    def _ensure_required_keys(self) -> None:
+        """Populate missing top-level config keys with their default values."""
+        for key, default_value in DEFAULT_CONFIG.items():
+            self.data.setdefault(key, default_value)
+
+    def load(self) -> ConfigData:
+        """Load config from disk.
+
+        If the config file is corrupt or unreadable, the file is backed up when
+        possible and a fresh default config is written in its place.
+
+        Returns:
+            The in-memory configuration dictionary.
         """
         try:
             if self.path.exists():
-                with self.path.open("r", encoding="utf-8") as fh:
-                    self.data = json.load(fh)
-                    # Ensure required keys exist
-                    if "saved_locations" not in self.data:
-                        self.data["saved_locations"] = []
-                    if "refresh_interval_minutes" not in self.data:
-                        self.data["refresh_interval_minutes"] = 10
-                    return self.data
-        except Exception:
-            # Backup corrupted file and reset
+                with self.path.open("r", encoding="utf-8") as handle:
+                    loaded_data = json.load(handle)
+                if not isinstance(loaded_data, dict):
+                    error_message = "Config root must be a JSON object."
+                    raise TypeError(error_message)
+                self.data = loaded_data
+                self._ensure_required_keys()
+                return self.data
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
             try:
-                bak = self.path.with_suffix(self.path.suffix + ".bak")
-                self.path.replace(bak)
-            except Exception:
+                backup_path = self.path.with_suffix(self.path.suffix + ".bak")
+                self.path.replace(backup_path)
+            except OSError:
                 pass
-        # If we reach here, write default config
+
         self.data = DEFAULT_CONFIG.copy()
         try:
-            with self.path.open("w", encoding="utf-8") as fh:
-                json.dump(self.data, fh, indent=2)
-        except Exception:
-            # Swallow errors to avoid crashing GUI on startup; callers should
-            # detect missing persistence by verifying file existence.
+            with self.path.open("w", encoding="utf-8") as handle:
+                json.dump(self.data, handle, indent=2)
+        except OSError:
             pass
         return self.data
 
     def save(self) -> None:
-        """Save current config data to disk."""
+        """Persist the current in-memory configuration to disk.
+
+        Serialization or file-system failures are swallowed to preserve the
+        existing defensive, non-raising behavior expected by the GUI.
+        """
         try:
-            with self.path.open("w", encoding="utf-8") as fh:
-                json.dump(self.data, fh, indent=2)
+            with self.path.open("w", encoding="utf-8") as handle:
+                json.dump(self.data, handle, indent=2)
         except Exception:
-            # Do not raise — GUI should surface persistence failures if needed.
             pass
 
     def add_location(self, location: str) -> None:
-        """Add a location string to saved_locations if not already present."""
-        loc = (location or "").strip()
-        if not loc:
+        """Add a location string to saved locations if it is not already present.
+
+        Args:
+            location: Human-readable location string to persist.
+        """
+        normalized_location = self._normalize_location(location)
+        if not normalized_location:
             return
-        saved = self.data.get("saved_locations") or []
-        if loc in saved:
+
+        saved_locations = self.data.get("saved_locations") or []
+        if normalized_location in saved_locations:
             return
-        saved.append(loc)
-        self.data["saved_locations"] = saved
+
+        saved_locations.append(normalized_location)
+        self.data["saved_locations"] = saved_locations
         self.save()
 
     def remove_location(self, location: str) -> None:
-        """Remove a location string if present."""
-        loc = (location or "").strip()
-        if not loc:
+        """Remove a saved location if it exists.
+
+        Args:
+            location: Human-readable location string to remove.
+        """
+        normalized_location = self._normalize_location(location)
+        if not normalized_location:
             return
-        saved = self.data.get("saved_locations") or []
+
+        saved_locations = self.data.get("saved_locations") or []
         try:
-            saved.remove(loc)
-            self.data["saved_locations"] = saved
+            saved_locations.remove(normalized_location)
+            self.data["saved_locations"] = saved_locations
             self.save()
         except ValueError:
             return
 
     def clear_all_locations(self) -> None:
-        """Clear all saved locations.
-
-        Resets the saved_locations list to empty and persists the change. This
-        method is defensive and will swallow I/O errors to avoid crashing the
-        GUI during shutdown or in read-only environments.
-        """
+        """Clear all saved locations and persist the change."""
         try:
             self.data["saved_locations"] = []
             self.save()
         except Exception:
-            # Swallow errors to preserve existing defensive behavior
             return
 
     def set_last_location(self, location: str) -> None:
-        self.data["last_location"] = (location or "").strip()
+        """Persist the most recently used location string.
+
+        Args:
+            location: Human-readable location string.
+        """
+        self.data["last_location"] = self._normalize_location(location)
         self.save()
 
     def set_default_location(self, location: str) -> None:
-        """Set a persistent default location string that the app will prefer on startup.
+        """Persist the preferred default location used at startup.
 
-        The value is stored under the "default_location" key in the config JSON.
+        Args:
+            location: Human-readable location string.
         """
-        self.data["default_location"] = (location or "").strip()
+        self.data["default_location"] = self._normalize_location(location)
         self.save()
 
-    def get_saved_locations(self) -> List[str]:
+    def get_saved_locations(self) -> list[str]:
+        """Return a copy of the saved locations list."""
         return list(self.data.get("saved_locations") or [])
 
-    def get_last_location(self) -> Optional[str]:
+    def get_last_location(self) -> str | None:
+        """Return the last used location, if any."""
         return self.data.get("last_location")
 
-    def get_default_location(self) -> Optional[str]:
-        """Return the configured default location or None if not set."""
+    def get_default_location(self) -> str | None:
+        """Return the configured default location, if any."""
         return self.data.get("default_location")

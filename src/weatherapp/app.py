@@ -20,8 +20,8 @@ def main() -> None:
     blocking or long-running operations.
     """
     app = QApplication(sys.argv)
-    w = MainWindow()
-    w.show()
+    window = MainWindow()
+    window.show()
     sys.exit(app.exec())
 
 

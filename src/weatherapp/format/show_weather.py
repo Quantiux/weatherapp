@@ -1,112 +1,137 @@
-"""
-Backend data formatter for the weather GUI application.
+"""Backend data formatter for the WeatherApp CLI utilities.
 
-This module collects current, hourly, and daily forecasts from the data layer,
-normalizes units, formats values, maps weather codes to human-readable labels and
-icons, and feeds the processed output to the GUI layer. Location coordinates
-(lat/lon) are provided by the GUI layer based on user input.
+This module fetches current, hourly, and daily forecasts from the shared data
+layer, normalizes selected values for terminal display, maps weather codes to
+human-readable labels, and prints formatted summaries.
 """
+
+from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from collections.abc import Callable
+from typing import Any
 
 import pandas as pd
+
 from weatherapp.data.get_weather_data import fetch_weather
 from weatherapp.utils.weather_code_mapper import get_desc_for_code, get_svg_for_code
 
-# Set constants
-# TIMEZONE = "America/New_York"  # Local timezone for displaying times
-VIS_MILES = 0.000621371  # meters to miles conversion factor (for visibility parameter)
+VIS_MILES = 0.000621371
 
-# Configure logger
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 logger = logging.getLogger("openmeteo_client")
 
+ColumnFormatter = Callable[[Any], str]
+COLUMN_FORMATTERS: dict[str, ColumnFormatter] = {
+    "Temp": lambda value: f"{int(round(float(value)))}°F",
+    "Feels": lambda value: f"{int(round(float(value)))}°F",
+    "T(max)": lambda value: f"{int(round(float(value)))}°F",
+    "T(min)": lambda value: f"{int(round(float(value)))}°F",
+    "Rainfall": lambda value: f"{float(value):.1f}in",
+    "Snowfall": lambda value: f"{float(value):.1f}in",
+    "Humidity": lambda value: f"{float(value):.0f}%",
+    "Precip.": lambda value: f"{float(value):.0f}%",
+    "Cloud cover": lambda value: f"{float(value):.0f}%",
+    "Wind": lambda value: f"{int(round(float(value)))}mph",
+    "Gusts": lambda value: f"{int(round(float(value)))}mph",
+    "Visibility": lambda value: f"{int(round(float(value)))}mi",
+    "UV": lambda value: f"{float(value):.1f}",
+}
+
 
 def map_code_to_label(code: int, day_or_night: str) -> str:
-    """
-    Return a combined string of the form: 'icon.svg (Description)' using the SVG
-    mapping and Open-Meteo's built-in code meanings.
+    """Return the mapped SVG filename and description for a weather code.
+
+    Args:
+        code: Open-Meteo weather code.
+        day_or_night: Either ``"day"`` or ``"night"`` for icon selection.
+
+    Returns:
+        A string in the form ``"icon.svg (description)"``.
     """
     try:
-        # map svg and description to weather code
-        svg = get_svg_for_code(code, day_or_night)
-        desc = get_desc_for_code(code)
-
-        return f"{svg} ({desc})"
+        svg_name = get_svg_for_code(code, day_or_night)
+        description = get_desc_for_code(code)
+        return f"{svg_name} ({description})"
     except Exception:
         logger.exception("Failed to map weather_code %s", code)
         return "wi-na.svg (Unknown)"
 
 
-def format_columns(df: pd.DataFrame, col_map: Dict[str, str]) -> None:
+def _format_display_value(value: Any, format_key: str) -> str:
+    """Format a single display value using a named formatter.
+
+    Args:
+        value: Raw value extracted from the weather response.
+        format_key: Key selecting a formatting rule from ``COLUMN_FORMATTERS``.
+
+    Returns:
+        A terminal-friendly string representation.
     """
-    Format DataFrame columns in place.
-
-    col_map maps column name -> formatting key.
-    """
-
-    def _format_value(val: Any, var: str) -> str:
-        """Format data for display, handling NaN values."""
-        try:
-            if pd.isna(val):
-                return "NaN"
-        except Exception:
-            return str(val)
-
-        try:
-            if var in {"Temp", "Feels"}:
-                return f"{int(round(float(val)))}°F"
-            if var in {"T(max)", "T(min)"}:
-                return f"{int(round(float(val)))}°F"
-            if var in {"Rainfall", "Snowfall"}:
-                return f"{float(val):.1f}in"
-            if var in {"Humidity", "Precip.", "Cloud cover"}:
-                return f"{float(val):.0f}%"
-            if var in {"Wind", "Gusts"}:
-                return f"{int(round(float(val)))}mph"
-            if var == "Visibility":
-                return f"{int(round(float(val)))}mi"
-            if var == "UV":
-                return f"{float(val):.1f}"
-            return str(val)
-        except Exception:
+    try:
+        if pd.isna(value):
             return "NaN"
+    except Exception:
+        return str(value)
 
-    for col, var in col_map.items():
-        if col in df.columns:
-            df[col] = df[col].map(lambda v: _format_value(v, var))
+    formatter = COLUMN_FORMATTERS.get(format_key)
+    if formatter is None:
+        return str(value)
+
+    try:
+        return formatter(value)
+    except Exception:
+        return "NaN"
+
+
+
+def format_columns(df: pd.DataFrame, col_map: dict[str, str]) -> None:
+    """Format DataFrame columns in place for terminal display.
+
+    Args:
+        df: DataFrame whose columns should be transformed.
+        col_map: Mapping of column name to formatter key.
+
+    Returns:
+        None. The input DataFrame is mutated in place.
+    """
+    for column_name, format_key in col_map.items():
+        if column_name in df.columns:
+            df[column_name] = df[column_name].map(
+                lambda value, current_key=format_key: _format_display_value(
+                    value,
+                    current_key,
+                ),
+            )
+
 
 
 def parse_current(response: Any) -> None:
-    """
-    Extract and display current weather variables from the API response.
+    """Extract and print current weather values from an API response.
 
     Args:
-        response: Response object from fetch_weather.
+        response: Weather response object returned by ``fetch_weather``.
+
+    Returns:
+        None. The formatted current weather summary is printed to stdout.
     """
     try:
         current = response.Current()
 
-        # Variables() indices correspond to requested 'current' list in params.
-        # Combine current rain and showers into a single `rain` value.
-        rain_val = float(current.Variables(4).Value())
-        showers_val = float(current.Variables(5).Value())
-        combined_rain = rain_val + showers_val
+        rain_value = float(current.Variables(4).Value())
+        showers_value = float(current.Variables(5).Value())
+        combined_rain = rain_value + showers_value
 
-        # Map current weather code to icon/description
         weather_code = current.Variables(7).Value()
         is_day = current.Variables(3).Value()
         day_or_night = "day" if is_day else "night"
         weather_desc = map_code_to_label(weather_code, day_or_night)
 
-        # Scale visibility from meters to miles
         visibility_miles = float(current.Variables(12).Value()) * VIS_MILES
 
-        # The order of variables must match the requested 'current' list.
         current_data = {
             "weather": weather_desc,
             "temperature_2m": float(current.Variables(0).Value()),
@@ -125,7 +150,9 @@ def parse_current(response: Any) -> None:
 
         print(f"Condition: {current_data['weather']}")
         print(
-            f"Temp (Feels): {current_data['temperature_2m']:.0f}°F ({current_data['apparent_temperature']:.0f}°F)"
+            "Temp (Feels): "
+            f"{current_data['temperature_2m']:.0f}°F "
+            f"({current_data['apparent_temperature']:.0f}°F)",
         )
         print(f"Rain Prob.: {current_data['precipitation_probability']:.0f}%")
         print(f"Rainfall: {current_data['rain']:.1f}in")
@@ -133,7 +160,8 @@ def parse_current(response: Any) -> None:
         print(f"Humidity: {current_data['relative_humidity_2m']:.0f}%")
         print(f"Cloud cover: {current_data['cloud_cover']:.0f}%")
         print(
-            f"Wind (Gusts): {current_data['wind_speed']:.0f}mph ({current_data['wind_gusts']:.0f}mph)"
+            f"Wind (Gusts): {current_data['wind_speed']:.0f}mph "
+            f"({current_data['wind_gusts']:.0f}mph)",
         )
         print(f"Visibility: {current_data['visibility']:.0f}mi")
         print(f"UV Index: {current_data['uv_index']:.0f}")
@@ -142,21 +170,23 @@ def parse_current(response: Any) -> None:
         raise
 
 
+
 def parse_hourly(response: Any) -> None:
-    """
-    Extract and display next 48 hours of hourly weather variables from the API response.
+    """Extract and print the hourly weather forecast.
 
     Args:
-        response: Response object from fetch_weather.
+        response: Weather response object returned by ``fetch_weather``.
+
+    Returns:
+        None. The formatted hourly forecast table is printed to stdout.
     """
     try:
         hourly = response.Hourly()
-        # Variables() indices correspond to requested 'hourly' list in params.
         temperature = hourly.Variables(0).ValuesAsNumpy()
         relative_humidity = hourly.Variables(1).ValuesAsNumpy()
         apparent_temperature = hourly.Variables(2).ValuesAsNumpy()
         is_day = hourly.Variables(3).ValuesAsNumpy()
-        precip_prob = hourly.Variables(4).ValuesAsNumpy()
+        precip_probability = hourly.Variables(4).ValuesAsNumpy()
         weather_code = hourly.Variables(5).ValuesAsNumpy()
         rain = hourly.Variables(6).ValuesAsNumpy()
         showers = hourly.Variables(7).ValuesAsNumpy()
@@ -167,33 +197,29 @@ def parse_hourly(response: Any) -> None:
         wind_gusts = hourly.Variables(12).ValuesAsNumpy()
         uv_index = hourly.Variables(13).ValuesAsNumpy()
 
-        # Combine rain & showers for a single rain column
         rain_total = rain + showers
 
-        # Build time range for the hourly data and format as "H:MM AM/PM"
-        timezone = response.Timezone().decode('utf-8')
+        timezone_name = response.Timezone().decode("utf-8")
         hours = pd.date_range(
             start=pd.to_datetime(hourly.Time(), unit="s", utc=True).tz_convert(
-                timezone
+                timezone_name,
             ),
             end=pd.to_datetime(hourly.TimeEnd(), unit="s", utc=True).tz_convert(
-                timezone
+                timezone_name,
             ),
             freq=pd.Timedelta(seconds=hourly.Interval()),
             inclusive="left",
         )
         hours = hours.strftime("%-I:%M %p")
 
-        # Map current weather code to icon/description
-        day_or_night = ["day" if is_day_val else "night" for is_day_val in is_day]
+        day_or_night = ["day" if is_day_value else "night" for is_day_value in is_day]
         weather_desc = [
-            map_code_to_label(c, dn) for c, dn in zip(weather_code, day_or_night)
+            map_code_to_label(code, period)
+            for code, period in zip(weather_code, day_or_night, strict=False)
         ]
 
-        # Scale visibility from meters to miles
         visibility = visibility * VIS_MILES
 
-        # Build DataFrame
         hourly_df = pd.DataFrame(
             {
                 "Time": hours,
@@ -204,15 +230,14 @@ def parse_hourly(response: Any) -> None:
                 "Cloud cover": cloud_cover,
                 "Rainfall": rain_total,
                 "Snowfall": snowfall,
-                "Precip.": precip_prob,
+                "Precip.": precip_probability,
                 "Wind": wind_speed,
                 "Gusts": wind_gusts,
                 "Visibility": visibility,
                 "UV": uv_index,
-            }
+            },
         )
 
-        # Format data for display
         col_map = {
             "Temp": "Temp",
             "Feels": "Feels",
@@ -227,30 +252,29 @@ def parse_hourly(response: Any) -> None:
         }
         format_columns(hourly_df, col_map)
 
-        # Print next 48 hours of hourly forecast
         print("\n48-hour forecast:\n" + hourly_df.to_string(index=False))
-
     except Exception as exc:
         logger.exception("Failed to display hourly weather forecast: %s", exc)
         raise
 
 
+
 def parse_daily(response: Any) -> None:
-    """
-    Extract and display next 10 days of daily weather variables from the API response.
+    """Extract and print the daily weather forecast.
 
     Args:
-        response: Response object from fetch_weather.
+        response: Weather response object returned by ``fetch_weather``.
+
+    Returns:
+        None. The formatted daily forecast table is printed to stdout.
     """
     try:
         daily = response.Daily()
-        # Variables() indices correspond to requested 'daily' list in params.
         daily_weather_code = daily.Variables(0).ValuesAsNumpy()
         daily_sunrise = daily.Variables(1).ValuesInt64AsNumpy()
         daily_sunset = daily.Variables(2).ValuesInt64AsNumpy()
         daily_rain_sum = daily.Variables(3).ValuesAsNumpy()
         daily_showers_sum = daily.Variables(4).ValuesAsNumpy()
-        # Combine rain_sum and showers_sum into a single column `rain_total`.
         daily_rain_total = daily_rain_sum + daily_showers_sum
         daily_snowfall_sum = daily.Variables(5).ValuesAsNumpy()
         daily_uv_index_max = daily.Variables(6).ValuesAsNumpy()
@@ -263,14 +287,10 @@ def parse_daily(response: Any) -> None:
         daily_wind_speed_10m_max = daily.Variables(13).ValuesAsNumpy()
         daily_wind_gusts_10m_max = daily.Variables(14).ValuesAsNumpy()
 
-        # Convert precipitation units to inches:
-        daily_rain_total_in = daily_rain_total / 25.4  # 1 inch = 25.4 mm
-        daily_snow_total_in = daily_snowfall_sum / 2.54  # 1 inch = 2.54 cm
-
-        # Scale visibility from meters to miles
+        daily_rain_total_in = daily_rain_total / 25.4
+        daily_snow_total_in = daily_snowfall_sum / 2.54
         daily_visibility_min = daily_visibility_min * VIS_MILES
 
-        # Build date range for the daily data and format as "MM-DD (Ddd)"
         dates = pd.date_range(
             start=pd.to_datetime(daily.Time(), unit="s", utc=True),
             end=pd.to_datetime(daily.TimeEnd(), unit="s", utc=True),
@@ -279,23 +299,20 @@ def parse_daily(response: Any) -> None:
         )
         dates = dates.strftime("%m-%d (%a)")
 
-        # Format sunrise/sunset (epoch seconds) as local standard time, e.g. "7:15 AM"
-        timezone = response.Timezone().decode('utf-8')
+        timezone_name = response.Timezone().decode("utf-8")
         daily_sunrise_local = (
             pd.to_datetime(daily_sunrise, unit="s", utc=True)
-            .tz_convert(timezone)
+            .tz_convert(timezone_name)
             .strftime("%-I:%M %p")
         )
         daily_sunset_local = (
             pd.to_datetime(daily_sunset, unit="s", utc=True)
-            .tz_convert(timezone)
+            .tz_convert(timezone_name)
             .strftime("%-I:%M %p")
         )
 
-        # Map current weather code to icon/description
-        weather_desc = [map_code_to_label(c, "day") for c in daily_weather_code]
+        weather_desc = [map_code_to_label(code, "day") for code in daily_weather_code]
 
-        # Build DataFrame
         daily_df = pd.DataFrame(
             {
                 "Date": dates,
@@ -313,10 +330,9 @@ def parse_daily(response: Any) -> None:
                 "UV": daily_uv_index_max,
                 "Sunrise": daily_sunrise_local,
                 "Sunset": daily_sunset_local,
-            }
+            },
         )
 
-        # Format data for display
         col_map = {
             "T(max)": "Temp(max)",
             "T(min)": "Temp(min)",
@@ -332,20 +348,18 @@ def parse_daily(response: Any) -> None:
         }
         format_columns(daily_df, col_map)
 
-        # Print next 10 days of daily forecast
         print("\n10-day forecast:\n" + daily_df.to_string(index=False))
     except Exception as exc:
         logger.exception("Failed to process daily weather from response: %s", exc)
         raise
 
 
+
 def main() -> None:
-    """
-    Main entry point: fetch weather, print current summary, and hourly + daily Forecast.
-    """
-    LATITUDE = 42.250967869842874
-    LONGITUDE = -83.66940204731466
-    coords = (LATITUDE, LONGITUDE)
+    """Fetch weather data and print current, hourly, and daily summaries."""
+    latitude = 42.250967869842874
+    longitude = -83.66940204731466
+    coords = (latitude, longitude)
     try:
         response = fetch_weather(coords)
         parse_current(response)

@@ -24,7 +24,7 @@ FORECAST_DAYS = 10  # Maximum 16 days allowed by API
 FORECAST_HOURS = 30  # 29 hrs from next hour (to ensure at least 24hr forecast is available)
 
 # Query parameters for the Open-Meteo API request
-params = {
+params: dict[str, Any] = {
     "daily": [
         "weather_code",
         "sunrise",
@@ -100,10 +100,13 @@ def setup_client() -> openmeteo_requests.Client:
     """
     try:
         cache_session = requests_cache.CachedSession(
-            CACHE_PATH, expire_after=CACHE_EXPIRE
+            CACHE_PATH,
+            expire_after=CACHE_EXPIRE,
         )
         retry_session = retry(
-            cache_session, retries=RETRIES, backoff_factor=BACKOFF_FACTOR
+            cache_session,
+            retries=RETRIES,
+            backoff_factor=BACKOFF_FACTOR,
         )
         # Cast to Any to bypass mismatched type stubs between `requests` and the
         # client library; runtime object is a valid session-like object.
@@ -116,15 +119,13 @@ def setup_client() -> openmeteo_requests.Client:
 
 
 def fetch_weather(coords: tuple[float, float]) -> Any:
-    """
-    Fetch weather data from the Open-Meteo API.
+    """Fetch weather data for a latitude/longitude pair.
 
     Args:
-        client: Configured API client.
-        params: Query parameters for the request.
+        coords: Tuple containing ``(latitude, longitude)``.
 
     Returns:
-        The raw response object from the client.
+        The first raw response object returned by the Open-Meteo client.
     """
     client = setup_client()
 
@@ -135,10 +136,13 @@ def fetch_weather(coords: tuple[float, float]) -> Any:
 
         responses = client.weather_api(URL, params=params)
         if not responses:
-            raise RuntimeError("Empty response list from weather_api")
+            error_message = "Empty response list from weather_api"
+            raise RuntimeError(error_message)
         return responses[0]
     except Exception as exc:
         logger.exception(
-            "Error fetching weather data with params: %s; error: %s", params, exc
+            "Error fetching weather data with params: %s; error: %s",
+            params,
+            exc,
         )
         raise
